@@ -393,7 +393,7 @@ menu.addEventListener("click", (e) => {
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1 * KM, 5000 * KM);
-scene.add(new THREE.AmbientLight(0x9a6ab8, 0.42));
+scene.add(new THREE.AmbientLight(0x9a6ab8, 0.22));
 // Sky sun lives on the dome. Light only; no body in the system.
 const sunDir = new THREE.DirectionalLight(0xffd4a8, 1.2);
 sunDir.position.set(0.45, 0.55, 0.7);
@@ -408,15 +408,7 @@ function skyMap() {
   c.width = w;
   c.height = h;
   const ctx = c.getContext("2d");
-  ctx.fillStyle = "#14022a";
-  ctx.fillRect(0, 0, w, h);
-  const band = ctx.createLinearGradient(0, 0, 0, h);
-  band.addColorStop(0, "rgba(255,110,40,0.5)");
-  band.addColorStop(0.28, "rgba(220,30,140,0.45)");
-  band.addColorStop(0.5, "rgba(10,190,210,0.42)");
-  band.addColorStop(0.78, "rgba(70,40,200,0.4)");
-  band.addColorStop(1, "rgba(20,8,40,0.3)");
-  ctx.fillStyle = band;
+  ctx.fillStyle = "#07080e";
   ctx.fillRect(0, 0, w, h);
   function blob(x, y, r, color) {
     const g = ctx.createRadialGradient(x, y, 0, x, y, r);
@@ -425,18 +417,38 @@ function skyMap() {
     ctx.fillStyle = g;
     ctx.fillRect(x - r, y - r, r * 2, r * 2);
   }
+  // Squashed radial, so a cloud reads as a streak instead of a ball.
+  function wisp(x, y, rx, ry, rot, color) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.scale(1, ry / rx);
+    blob(0, 0, rx, color);
+    ctx.restore();
+  }
   ctx.globalCompositeOperation = "lighter";
-  blob(1400, 420, 560, "rgba(210,30,150,0.55)");
-  blob(960, 160, 400, "rgba(255,90,30,0.42)");
-  blob(1800, 680, 480, "rgba(90,40,255,0.45)");
-  blob(160, 780, 360, "rgba(40,255,140,0.28)");
+  blob(180, 160, 260, "rgba(210,40,150,0.42)");
+  blob(1680, 140, 300, "rgba(255,120,40,0.34)");
+  blob(1860, 780, 240, "rgba(90,50,220,0.4)");
+  blob(240, 860, 220, "rgba(20,180,200,0.32)");
+  blob(1100, 920, 280, "rgba(160,30,80,0.3)");
+  blob(1280, 360, 200, "rgba(40,90,200,0.28)");
   // Spawn looks +Z, about u=0.25 on a Three sphere. Sun sits there.
-  blob(420, 520, 380, "rgba(210,40,160,0.4)");
-  blob(640, 400, 440, "rgba(10,210,220,0.48)");
-  blob(700, 280, 280, "rgba(255,120,40,0.35)");
-  blob(512, 310, 90, "rgba(255,250,210,1)");
-  blob(512, 310, 180, "rgba(255,170,50,0.75)");
-  blob(512, 310, 300, "rgba(255,90,40,0.32)");
+  blob(512, 310, 70, "rgba(255,250,210,1)");
+  blob(512, 310, 150, "rgba(255,170,50,0.7)");
+  blob(512, 310, 260, "rgba(255,90,40,0.22)");
+  wisp(620, 180, 180, 48, 0.4, "rgba(220,60,160,0.16)");
+  wisp(980, 240, 220, 40, -0.5, "rgba(40,200,210,0.14)");
+  wisp(1500, 520, 200, 36, 0.8, "rgba(255,150,50,0.13)");
+  wisp(400, 640, 160, 32, -0.3, "rgba(140,80,255,0.15)");
+  wisp(800, 720, 240, 44, 0.2, "rgba(40,160,200,0.12)");
+  wisp(1320, 760, 190, 38, 1.1, "rgba(200,40,120,0.14)");
+  wisp(1700, 300, 170, 30, -0.9, "rgba(255,180,80,0.12)");
+  wisp(260, 420, 150, 28, 0.6, "rgba(80,80,220,0.13)");
+  wisp(1040, 120, 160, 26, 0.15, "rgba(40,210,160,0.1)");
+  wisp(560, 880, 200, 34, -0.7, "rgba(180,60,200,0.12)");
+  wisp(1480, 160, 140, 24, 1.4, "rgba(20,180,220,0.11)");
+  wisp(720, 480, 130, 22, -1.2, "rgba(255,100,60,0.1)");
   ctx.globalCompositeOperation = "source-over";
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;

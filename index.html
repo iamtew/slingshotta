@@ -24,6 +24,40 @@
     }
     #speed, #near { font-variant-numeric: tabular-nums; }
     #hint { margin-top: 6px; opacity: 0.85; }
+    #menu {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      display: grid;
+      place-items: center;
+      background: rgba(7, 11, 20, 0.72);
+    }
+    #menu[hidden] { display: none; }
+    #menu .panel {
+      width: min(420px, calc(100vw - 32px));
+      max-height: calc(100vh - 32px);
+      overflow: auto;
+      box-sizing: border-box;
+      background: #101826;
+      border: 1px solid #2a3b52;
+      padding: 18px 20px 14px;
+    }
+    #menu h1 { margin: 0 0 12px; font-size: 18px; font-weight: 600; }
+    #menu button {
+      display: block;
+      width: 100%;
+      margin: 0 0 8px;
+      padding: 8px 10px;
+      text-align: left;
+      color: inherit;
+      background: #182433;
+      border: 1px solid #31465f;
+      font: inherit;
+      cursor: pointer;
+    }
+    #menu button:hover, #menu button:focus { border-color: #7ecbff; outline: none; }
+    #menu p { margin: 0 0 10px; }
+    #menu .foot { margin: 4px 0 0; opacity: 0.7; }
   </style>
   <script type="importmap">
   {
@@ -37,7 +71,36 @@
   <div id="hud">
     <div id="speed">speed 0</div>
     <div id="near"></div>
-    <div id="hint">Click to steer. Mouse pitch/yaw, Q/E roll. W/S engine. A/D strafe, Space/C up/down. Blue arrow is your path.</div>
+    <div id="hint">Click to steer. Mouse pitch/yaw, Q/E roll. W/S engine. A/D strafe, Space/C up/down. Blue arrow is your path. Enter or Esc: menu.</div>
+  </div>
+  <div id="menu" hidden>
+    <div class="panel">
+      <h1>Slingshotta</h1>
+      <div id="menu-home">
+        <button type="button" data-act="resume">Resume</button>
+        <button type="button" data-act="restart">Restart</button>
+        <button type="button" data-act="how">How to play</button>
+        <button type="button" data-act="controls">Controls</button>
+        <button type="button" data-act="help">Help</button>
+      </div>
+      <div id="menu-how" hidden>
+        <p>Graze a planet's ring for one speed boost. Aim too low, but not into the body, and you bounce off slower. Hit the body and you start over.</p>
+        <p>The blue arrow is your path. The nose is only where you point. Turn, then burn, or nudge the path with the translation thrusters.</p>
+        <button type="button" data-act="back">Back</button>
+      </div>
+      <div id="menu-controls" hidden>
+        <p>Click the view for the mouse. Mouse or arrows pitch and yaw. Q / E roll. W / S main engine. A / D strafe. Space / C up and down.</p>
+        <p>Gamepad: right stick aims, left stick strafes and thrusts, triggers throttle, bumpers roll.</p>
+        <p>Enter or Esc opens and closes this menu.</p>
+        <button type="button" data-act="back">Back</button>
+      </div>
+      <div id="menu-help" hidden>
+        <p>A spin keeps going until you counter it or it eases off. Stop the spin before you line up a burn.</p>
+        <p>Doing nothing at the start misses Vela. Steer into a ring when you want the boost. The belt rocks are solid.</p>
+        <button type="button" data-act="back">Back</button>
+      </div>
+      <p class="foot">Enter or Esc to close</p>
+    </div>
   </div>
   <script type="module" src="src/main.js"></script>
 </body>

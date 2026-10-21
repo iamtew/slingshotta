@@ -533,13 +533,32 @@ for (const p of planets) {
   mesh.position.set(p.x, p.y, p.z);
   scene.add(mesh);
   if (p.id === "Rhea") {
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(p.radius * 1.55, p.radius * 0.06, 8, 48),
-      new THREE.MeshPhongMaterial({ color: 0xd8c8a4, transparent: true, opacity: 0.55, shininess: 4 })
-    );
-    ring.rotation.x = Math.PI / 2.4;
-    ring.position.copy(mesh.position);
-    scene.add(ring);
+    // Flat annuli. A torus tube reads as a donut.
+    const rings = new THREE.Group();
+    const bands = [
+      [1.28, 1.36, 0xc4b49a, 0.35],
+      [1.42, 1.72, 0xe6d2a8, 0.55],
+      [1.78, 1.86, 0x8f9bb5, 0.28],
+      [1.94, 2.18, 0xd7c4b0, 0.42],
+      [2.24, 2.32, 0xf0e6d4, 0.22],
+    ];
+    for (const [inner, outer, color, opacity] of bands) {
+      rings.add(
+        new THREE.Mesh(
+          new THREE.RingGeometry(p.radius * inner, p.radius * outer, 80),
+          new THREE.MeshBasicMaterial({
+            color,
+            transparent: true,
+            opacity,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+          })
+        )
+      );
+    }
+    rings.rotation.x = Math.PI / 2.4;
+    rings.position.copy(mesh.position);
+    scene.add(rings);
   }
 }
 

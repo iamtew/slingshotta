@@ -119,7 +119,8 @@ export async function createHud() {
     antialias: true,
     resolution: Math.min(2, window.devicePixelRatio || 1),
     autoDensity: true,
-    resizeTo: window,
+    width: innerWidth,
+    height: innerHeight,
   });
   app.stage.eventMode = "none";
 
@@ -162,27 +163,50 @@ export async function createHud() {
 
   app.stage.addChild(warn, left, right, radar, toast);
 
-  const PANEL_H = 100;
   const GAP = 18;
 
+  function viewSize() {
+    const vv = window.visualViewport;
+    return {
+      w: Math.round(vv?.width ?? innerWidth),
+      h: Math.round(vv?.height ?? innerHeight),
+      x: vv?.offsetLeft ?? 0,
+      y: vv?.offsetTop ?? 0,
+    };
+  }
+
   function layout() {
+    const view = viewSize();
+    if (app.renderer) app.renderer.resize(view.w, view.h);
+    canvas.style.left = view.x + "px";
+    canvas.style.top = view.y + "px";
+    canvas.style.width = view.w + "px";
+    canvas.style.height = view.h + "px";
     const w = app.screen.width;
     const h = app.screen.height;
-    const pad = 18;
-    const panelW = Math.min(210, Math.max(128, (w - RADAR_R * 2 - pad * 4) / 2));
+    const short = Math.min(w, h);
+    const portrait = h > w;
+    const radarScale = portrait ? Math.max(0.42, w / 900) : short < 720 ? Math.max(0.52, short / 720) : 1;
+    const rr = RADAR_R * radarScale;
+    const panelH = short < 720 ? 78 : 100;
+    const pad = 12;
+    // Portrait: pads sit under the cluster. Landscape: pads are corners, HUD stays bottom center.
+    const padLift = portrait ? 210 : 0;
+    const panelW = Math.min(210, Math.max(110, (w - rr * 2 - pad * 4) / 2));
     const radarX = w * 0.5;
-    const radarY = h - 28 - RADAR_R * TILT;
-    const clusterY = h - PANEL_H - pad;
-    left.position.set(radarX - RADAR_R - GAP - panelW, clusterY);
-    right.position.set(radarX + RADAR_R + GAP, clusterY);
+    const radarY = h - 20 - rr * TILT - padLift;
+    const clusterY = h - panelH - pad - padLift;
+    radar.scale.set(radarScale);
+    left.position.set(radarX - rr - GAP - panelW, clusterY);
+    right.position.set(radarX + rr + GAP, clusterY);
     radar.position.set(radarX, radarY);
     toast.position.set(radarX, clusterY - 36);
     toast.style.wordWrapWidth = Math.min(560, w - 40);
     warnText.position.set(w * 0.5, h * 0.38);
     leftBg.clear();
-    drawPanel(leftBg, panelW, PANEL_H);
+    drawPanel(leftBg, panelW, panelH);
     rightBg.clear();
-    drawPanel(rightBg, panelW, PANEL_H);
+    drawPanel(rightBg, panelW, panelH);
   }
 
   // Static disc. Blips redraw each frame.
@@ -208,6 +232,8 @@ export async function createHud() {
 
   layout();
   addEventListener("resize", layout);
+  visualViewport?.addEventListener("resize", layout);
+  visualViewport?.addEventListener("scroll", layout);
 
   return {
     update(state) {

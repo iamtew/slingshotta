@@ -1,14 +1,14 @@
 import * as THREE from "three";
-import { createPass, selfCheck, step } from "./physics.js";
+import { alignArcade, createPass, engineArcade, selfCheck, step } from "./physics.js";
 
 selfCheck();
 
-const MAIN = 26;
-const RCS_LIN = 18;
-const RCS_ANG = 2.6;
-// ponytail: weak spin damping so a tap coasts. Drop it for pure counter-thrust.
-const ANG_DAMP = 0.7;
+const TURN = 2.2;
 const MAX_SPIN = 2.2;
+// Locked mouse: pixels this frame are turn rate, then they clear.
+const MOUSE_TURN = 0.15;
+// Pitch starts inverted. Yaw and roll start normal. Toggles on the Controls page.
+const invert = { pitch: true, yaw: false, roll: false };
 // Wide of Vela, coasting +Z. Doing nothing misses. Steer in for the ring.
 const SPAWN = { x: -40, y: 0, z: -130, vx: 0, vy: 0, vz: 10 };
 
@@ -47,11 +47,10 @@ for (let i = 0; i < ROCK_N; i++) {
 const bodies = planets.concat(rocks);
 const ship = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 };
 const pass = createPass();
-// Attitude is independent of velocity. Nose is local +Z.
+// Nose is local +Z. Arcade: velocity weathervanes onto it.
 const orient = new THREE.Quaternion();
 const spin = new THREE.Vector3();
 const forward = new THREE.Vector3();
-const right = new THREE.Vector3();
 const up = new THREE.Vector3();
 const axis = new THREE.Vector3();
 const turn = new THREE.Quaternion();
@@ -78,6 +77,10 @@ let pointerDown = false;
 let paused = false;
 const mouse = { x: 0, y: 0 };
 const menu = document.querySelector("#menu");
+
+function invertLabel(axis) {
+  return axis[0].toUpperCase() + axis.slice(1) + ": " + (invert[axis] ? "inverted" : "normal");
+}
 
 function showMenuPage(name) {
   for (const id of ["home", "how", "controls", "help"]) {
@@ -140,6 +143,11 @@ menu.addEventListener("click", (e) => {
   else if (act === "restart") {
     reset();
     setMenu(false);
+  } else if (act === "invert") {
+    const btn = e.target.closest("button");
+    const axis = btn.dataset.axis;
+    invert[axis] = !invert[axis];
+    btn.textContent = invertLabel(axis);
   } else if (act === "back") showMenuPage("home");
   else showMenuPage(act);
 });
@@ -221,14 +229,14 @@ plume.position.z = -1.15;
 craft.add(nose, fuselage, podL, podR, plume);
 scene.add(craft);
 
-// Where the ship is going, not where the nose points.
+// Path read. Arcade flight lines this up with the nose.
 const pathArrow = new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), new THREE.Vector3(), 6, 0x7ecbff, 1.3, 0.65);
 scene.add(pathArrow);
 
 const speedEl = document.querySelector("#speed");
 const nearEl = document.querySelector("#near");
 const hintEl = document.querySelector("#hint");
-const DEFAULT_HINT = "Click to steer. Mouse pitch/yaw, Q/E roll. W/S engine. A/D strafe, Space/C up/down. Blue arrow is your path. Enter or Esc: menu.";
+const DEFAULT_HINT = "Click to steer. Mouse pitch/yaw, A/D roll. W thrust, S brake, Shift boost. Nose is the path. Enter or Esc: menu.";
 let hintUntil = 0;
 let hintText = DEFAULT_HINT;
 
@@ -255,27 +263,23 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
 
-  let main = 0;
-  let strafe = 0;
-  let lift = 0;
+  let thrust = false;
+  let brake = false;
+  let boost = keys.has("ShiftLeft") || keys.has("ShiftRight");
   let pitch = 0;
   let yaw = 0;
   let roll = 0;
-  if (keys.has("KeyW")) main += 1;
-  if (keys.has("KeyS")) main -= 0.65;
-  if (keys.has("KeyA")) strafe -= 1;
-  if (keys.has("KeyD")) strafe += 1;
-  if (keys.has("Space")) lift += 1;
-  if (keys.has("KeyC") || keys.has("ControlLeft")) lift -= 1;
+  if (keys.has("KeyW")) thrust = true;
+  if (keys.has("KeyS")) brake = true;
   if (keys.has("ArrowUp")) pitch -= 1;
   if (keys.has("ArrowDown")) pitch += 1;
   if (keys.has("ArrowLeft")) yaw -= 1;
   if (keys.has("ArrowRight")) yaw += 1;
-  if (keys.has("KeyQ")) roll -= 1;
-  if (keys.has("KeyE")) roll += 1;
-  // Mouse right yaws right. Mouse up pitches the nose up.
-  yaw += mouse.x * 0.08;
-  pitch += mouse.y * 0.08;
+  if (keys.has("KeyA") || keys.has("KeyQ")) roll -= 1;
+  if (keys.has("KeyD") || keys.has("KeyE")) roll += 1;
+  // Mouse right yaws right. Invert (default) makes mouse up pitch the nose down.
+  const mouseYaw = mouse.x * MOUSE_TURN;
+  const mousePitch = mouse.y * MOUSE_TURN;
   mouse.x = 0;
   mouse.y = 0;
 
@@ -286,23 +290,25 @@ function frame(now) {
     const ly = pad.axes[1] ?? 0;
     const rx = pad.axes[2] ?? 0;
     const ry = pad.axes[3] ?? 0;
-    if (Math.abs(lx) > 0.18) strafe += lx;
-    if (Math.abs(ly) > 0.18) main += -ly;
+    if (Math.abs(lx) > 0.18) yaw += lx;
+    if (Math.abs(ly) > 0.18) pitch += ly;
     if (Math.abs(rx) > 0.18) yaw += rx;
     if (Math.abs(ry) > 0.18) pitch += ry;
-    main += pad.buttons[7]?.value ?? 0;
-    main -= pad.buttons[6]?.value ?? 0;
+    if ((pad.buttons[7]?.value ?? 0) > 0.1) thrust = true;
+    if ((pad.buttons[6]?.value ?? 0) > 0.1) brake = true;
+    if (pad.buttons[1]?.pressed) boost = true;
     if (pad.buttons[4]?.pressed) roll -= 1;
     if (pad.buttons[5]?.pressed) roll += 1;
   }
-  main = Math.max(-1, Math.min(1, main));
-  strafe = Math.max(-1, Math.min(1, strafe));
-  lift = Math.max(-1, Math.min(1, lift));
 
-  spin.x += pitch * RCS_ANG * dt;
-  spin.y += yaw * RCS_ANG * dt;
-  spin.z += roll * RCS_ANG * dt;
-  spin.multiplyScalar(Math.exp(-ANG_DAMP * dt));
+  pitch = Math.max(-1, Math.min(1, pitch));
+  yaw = Math.max(-1, Math.min(1, yaw));
+  roll = Math.max(-1, Math.min(1, roll));
+  spin.set(
+    (pitch * TURN + mousePitch) * (invert.pitch ? -1 : 1),
+    (yaw * TURN + mouseYaw) * (invert.yaw ? -1 : 1),
+    roll * TURN * (invert.roll ? -1 : 1)
+  );
   if (spin.length() > MAX_SPIN) spin.multiplyScalar(MAX_SPIN / spin.length());
 
   const rate = spin.length();
@@ -314,11 +320,8 @@ function frame(now) {
   }
 
   forward.set(0, 0, 1).applyQuaternion(orient);
-  right.set(1, 0, 0).applyQuaternion(orient);
   up.set(0, 1, 0).applyQuaternion(orient);
-  ship.vx += (forward.x * main * MAIN + right.x * strafe * RCS_LIN + up.x * lift * RCS_LIN) * dt;
-  ship.vy += (forward.y * main * MAIN + right.y * strafe * RCS_LIN + up.y * lift * RCS_LIN) * dt;
-  ship.vz += (forward.z * main * MAIN + right.z * strafe * RCS_LIN + up.z * lift * RCS_LIN) * dt;
+  engineArcade(ship, forward.x, forward.y, forward.z, dt, thrust || boost, brake, boost);
 
   const hit = step(ship, bodies, pass, dt);
   if (hit.event === "crash") {
@@ -330,10 +333,23 @@ function frame(now) {
     say("Bounced off " + hit.bodyId + ", slower.");
   }
 
+  let nearest = planets[0];
+  let nearestD = Infinity;
+  let inWell = false;
+  for (const p of planets) {
+    const d = Math.hypot(ship.x - p.x, ship.y - p.y, ship.z - p.z);
+    if (d < p.well) inWell = true;
+    if (d < nearestD) {
+      nearestD = d;
+      nearest = p;
+    }
+  }
+  if (hit.event !== "crash") alignArcade(ship, forward.x, forward.y, forward.z, dt, inWell);
+
   craft.position.set(ship.x, ship.y, ship.z);
   craft.quaternion.copy(orient);
-  plume.visible = main > 0.05;
-  plume.scale.y = 0.35 + main * 1.4;
+  plume.visible = thrust || boost;
+  plume.scale.y = 0.35 + (boost ? 1.8 : 1.4);
 
   const speed = Math.hypot(ship.vx, ship.vy, ship.vz);
   if (speed > 0.35) {
@@ -356,15 +372,6 @@ function frame(now) {
   );
   camera.up.copy(up);
   camera.lookAt(ship.x + forward.x * look, ship.y + forward.y * look, ship.z + forward.z * look);
-  let nearest = planets[0];
-  let nearestD = Infinity;
-  for (const p of planets) {
-    const d = Math.hypot(ship.x - p.x, ship.y - p.y, ship.z - p.z);
-    if (d < nearestD) {
-      nearestD = d;
-      nearest = p;
-    }
-  }
   speedEl.textContent = "speed " + speed.toFixed(0);
   nearEl.textContent = nearest.id + "  " + nearestD.toFixed(0);
   if (hintUntil && now > hintUntil) {

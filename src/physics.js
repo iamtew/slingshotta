@@ -13,6 +13,12 @@ const CRUISE = 40 * KM;
 const BOOST_MULT = 1.8;
 const ALIGN_SPACE = 2;
 const ALIGN_WELL = 0.35;
+// Extra 1/r on top of Newtonian. Surface pull is (1+CLOSE)×, far coast barely moves.
+const CLOSE = 10;
+
+function gravityScale(gm, radius, r) {
+  return (gm / (r * r * r)) * (1 + (CLOSE * radius) / r);
+}
 
 export function createPass() {
   return {
@@ -38,8 +44,7 @@ function substep(ship, bodies, pass, dt) {
     const r = hypot3(dx, dy, dz);
     if (r < b.radius) return { event: "crash", bodyId: b.id };
     if (b.gm > 0 && r > 1e-4) {
-      // a = GM * direction toward body / r^2
-      const scale = b.gm / (r * r * r);
+      const scale = gravityScale(b.gm, b.radius, r);
       ax -= dx * scale;
       ay -= dy * scale;
       az -= dz * scale;
@@ -175,7 +180,7 @@ export function ghostPath(ship, bodies, dt, n, out) {
       const dz = z - b.z;
       const r = hypot3(dx, dy, dz);
       if (r < 1e-4) continue;
-      const scale = b.gm / (r * r * r);
+      const scale = gravityScale(b.gm, b.radius, r);
       ax -= dx * scale;
       ay -= dy * scale;
       az -= dz * scale;
@@ -326,6 +331,10 @@ export function selfCheck() {
   const ghost = new Float32Array(12);
   ghostPath({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 10 }, [], 0.1, 4, ghost);
   assert(ghost[11] > 2.9 && ghost[11] < 3.1, "ghost coast");
+
+  const aNear = gravityScale(1, 10, 10) * 10;
+  const aFar = gravityScale(1, 10, 40) * 40;
+  assert(aNear / aFar > 16, "close bite steeper than 1/r^2");
 }
 
 // node src/physics.js

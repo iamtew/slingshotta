@@ -6,6 +6,12 @@ const BOUNCE_DAMP = 0.6;
 // At the closest point, below this counts as a sideways graze.
 const GRAZE = 0.45;
 const MAX_DT = 1 / 90;
+const MAIN = 26;
+const BRAKE = 32;
+const CRUISE = 40;
+const BOOST_MULT = 1.8;
+const ALIGN_SPACE = 2;
+const ALIGN_WELL = 0.35;
 
 export function createPass() {
   return {
@@ -141,6 +147,55 @@ export function step(ship, bodies, pass, dt) {
   return { event, bodyId };
 }
 
+// NMS arcade: W adds along the nose under cruise, S kills speed, path weathervanes to the nose.
+export function engineArcade(ship, nx, ny, nz, dt, thrust, brake, boost) {
+  const cruise = boost ? CRUISE * BOOST_MULT : CRUISE;
+  const force = boost ? MAIN * BOOST_MULT : MAIN;
+  const speed0 = hypot3(ship.vx, ship.vy, ship.vz);
+  if (thrust && speed0 < cruise) {
+    ship.vx += nx * force * dt;
+    ship.vy += ny * force * dt;
+    ship.vz += nz * force * dt;
+    const speed1 = hypot3(ship.vx, ship.vy, ship.vz);
+    if (speed1 > cruise) {
+      const s = cruise / speed1;
+      ship.vx *= s;
+      ship.vy *= s;
+      ship.vz *= s;
+    }
+  }
+  if (brake) {
+    const speed = hypot3(ship.vx, ship.vy, ship.vz);
+    const drop = BRAKE * dt;
+    if (speed <= drop) {
+      ship.vx = 0;
+      ship.vy = 0;
+      ship.vz = 0;
+    } else {
+      const s = (speed - drop) / speed;
+      ship.vx *= s;
+      ship.vy *= s;
+      ship.vz *= s;
+    }
+  }
+}
+
+export function alignArcade(ship, nx, ny, nz, dt, inWell) {
+  const speed = hypot3(ship.vx, ship.vy, ship.vz);
+  if (speed < 1e-6) return;
+  const align = inWell ? ALIGN_WELL : ALIGN_SPACE;
+  const k = Math.min(1, align * dt);
+  ship.vx += (nx * speed - ship.vx) * k;
+  ship.vy += (ny * speed - ship.vy) * k;
+  ship.vz += (nz * speed - ship.vz) * k;
+  const n = hypot3(ship.vx, ship.vy, ship.vz);
+  if (n < 1e-8) return;
+  const s = speed / n;
+  ship.vx *= s;
+  ship.vy *= s;
+  ship.vz *= s;
+}
+
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
 }
@@ -213,6 +268,20 @@ export function selfCheck() {
   }
   assert(boosted, "boost");
   assert(hypot3(graze.vx, graze.vy, graze.vz) > 30, "boost not faster");
+
+  const go = { vx: 0, vy: 0, vz: 5 };
+  engineArcade(go, 0, 0, 1, 0.1, true, false, false);
+  assert(go.vz > 5, "thrust");
+  const hot = { vx: 0, vy: 0, vz: 80 };
+  engineArcade(hot, 0, 0, 1, 0.1, true, false, false);
+  assert(Math.abs(hot.vz - 80) < 1e-9, "no thrust above cruise");
+  const stop = { vx: 0, vy: 0, vz: 20 };
+  engineArcade(stop, 0, 0, 1, 0.1, false, true, false);
+  assert(stop.vz < 20 && stop.vz > 0, "brake");
+  const side = { vx: 10, vy: 0, vz: 0 };
+  alignArcade(side, 0, 0, 1, 0.5, false);
+  assert(side.vz > 0 && side.vx < 10, "align");
+  assert(Math.abs(hypot3(side.vx, side.vy, side.vz) - 10) < 1e-6, "align keeps speed");
 }
 
 // node src/physics.js

@@ -75,15 +75,43 @@ reset();
 
 const keys = new Set();
 let pointerDown = false;
+let paused = false;
 const mouse = { x: 0, y: 0 };
+const menu = document.querySelector("#menu");
+
+function showMenuPage(name) {
+  for (const id of ["home", "how", "controls", "help"]) {
+    document.querySelector("#menu-" + id).hidden = id !== name;
+  }
+}
+
+function setMenu(open) {
+  paused = open;
+  menu.hidden = !open;
+  keys.clear();
+  mouse.x = 0;
+  mouse.y = 0;
+  pointerDown = false;
+  if (open) {
+    showMenuPage("home");
+    document.exitPointerLock?.();
+    pathArrow.visible = false;
+  }
+}
 
 addEventListener("keydown", (e) => {
+  if (e.code === "Enter" || e.code === "Escape") {
+    e.preventDefault();
+    if (!e.repeat) setMenu(!paused);
+    return;
+  }
+  if (paused) return;
   keys.add(e.code);
   if (e.code.startsWith("Arrow") || e.code === "Space") e.preventDefault();
 });
 addEventListener("keyup", (e) => keys.delete(e.code));
 addEventListener("pointerdown", () => {
-  pointerDown = true;
+  if (!paused) pointerDown = true;
 });
 addEventListener("pointerup", () => {
   pointerDown = false;
@@ -102,7 +130,18 @@ renderer.setClearColor(0x070b14);
 document.body.prepend(renderer.domElement);
 renderer.domElement.id = "view";
 renderer.domElement.addEventListener("click", () => {
+  if (paused) return;
   renderer.domElement.requestPointerLock();
+});
+menu.addEventListener("click", (e) => {
+  const act = e.target.closest("button")?.dataset.act;
+  if (!act) return;
+  if (act === "resume") setMenu(false);
+  else if (act === "restart") {
+    reset();
+    setMenu(false);
+  } else if (act === "back") showMenuPage("home");
+  else showMenuPage(act);
 });
 
 const scene = new THREE.Scene();
@@ -189,7 +228,7 @@ scene.add(pathArrow);
 const speedEl = document.querySelector("#speed");
 const nearEl = document.querySelector("#near");
 const hintEl = document.querySelector("#hint");
-const DEFAULT_HINT = "Click to steer. Mouse pitch/yaw, Q/E roll. W/S engine. A/D strafe, Space/C up/down. Blue arrow is your path.";
+const DEFAULT_HINT = "Click to steer. Mouse pitch/yaw, Q/E roll. W/S engine. A/D strafe, Space/C up/down. Blue arrow is your path. Enter or Esc: menu.";
 let hintUntil = 0;
 let hintText = DEFAULT_HINT;
 
@@ -207,6 +246,12 @@ addEventListener("resize", () => {
 let last = performance.now();
 
 function frame(now) {
+  if (paused) {
+    last = now;
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+    return;
+  }
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
 

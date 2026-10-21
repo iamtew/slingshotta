@@ -246,6 +246,24 @@ const plume = new THREE.Mesh(
 plume.rotation.x = -Math.PI / 2;
 plume.position.z = -1.15;
 craft.add(nose, fuselage, podL, podR, plume);
+// Cold gas. Exhaust is opposite the turn. Local +Z is the nose.
+const rcsGeo = new THREE.ConeGeometry(0.12, 0.55, 5);
+const rcsMat = new THREE.MeshBasicMaterial({ color: 0xd8f2ff });
+function rcsJet(x, y, z, rx, rz) {
+  const jet = new THREE.Mesh(rcsGeo, rcsMat);
+  jet.position.set(x, y, z);
+  jet.rotation.set(rx, 0, rz);
+  jet.visible = false;
+  craft.add(jet);
+  return jet;
+}
+const rcsUp = rcsJet(0, 0.28, 0.85, 0, 0);
+const rcsDown = rcsJet(0, -0.28, 0.85, Math.PI, 0);
+const rcsRight = rcsJet(0.4, 0, 0.85, 0, -Math.PI / 2);
+const rcsLeft = rcsJet(-0.4, 0, 0.85, 0, Math.PI / 2);
+const rcsRollL = rcsJet(-0.62, 0.22, -0.15, 0, 0);
+const rcsRollR = rcsJet(0.62, 0.22, -0.15, 0, 0);
+const RCS_DZ = 0.18;
 craft.scale.setScalar(KM);
 scene.add(craft);
 
@@ -408,6 +426,12 @@ function frame(now) {
   craft.quaternion.copy(orient);
   plume.visible = thrust || boost;
   plume.scale.y = 0.35 + (boost ? 1.8 : 1.4);
+  rcsUp.visible = spin.x > RCS_DZ;
+  rcsDown.visible = spin.x < -RCS_DZ;
+  rcsRight.visible = spin.y > RCS_DZ;
+  rcsLeft.visible = spin.y < -RCS_DZ;
+  rcsRollL.visible = spin.z > RCS_DZ;
+  rcsRollR.visible = spin.z < -RCS_DZ;
 
   const speed = Math.hypot(ship.vx, ship.vy, ship.vz);
   if (speed > 0.35 * KM) {

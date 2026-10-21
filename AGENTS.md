@@ -30,7 +30,7 @@ World units are kilometres. `KM` in `src/physics.js` is the feel-preserving scal
 
 ## Input
 
-Arcade flight. The ship flies where the nose points. The blue arrow is a path read.
+Arcade flight. The ship flies where the nose points. The blue arrow is a path read. RCS jets flash on the hull while turning.
 
 - Click the view for mouse pitch and yaw. Stop the mouse, stop the turn. Arrows do the same. A / D or Q / E roll. Pitch, yaw, and roll start inverted. Per-axis toggles on the Controls page.
 - W thrust. S brake. Shift boost. No strafe.

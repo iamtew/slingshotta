@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { alignArcade, createPass, engineArcade, ghostPath, KM, selfCheck, step } from "./physics.js";
+import { alignArcade, createPass, engineArcade, ghostPath, KM, leanNose, selfCheck, step, wellPull } from "./physics.js";
 import { createHud, selfCheck as hudCheck } from "./hud.js";
 
 selfCheck();
@@ -146,11 +146,21 @@ const camQ = new THREE.Quaternion();
 const camFwd = new THREE.Vector3();
 const camUpDir = new THREE.Vector3();
 const CAM_FOLLOW = 5;
-// Hull yaw on brake is not the flight frame. Camera and the nose tick stay on orient.
+// Hull pose is not the flight frame. Camera and the nose tick stay on orient.
+const leanQ = new THREE.Quaternion();
+const rollQ = new THREE.Quaternion();
 const flipQ = new THREE.Quaternion();
+const orientInv = new THREE.Quaternion();
+const leanedNose = new THREE.Vector3();
+const pull = new THREE.Vector3();
+const localPull = new THREE.Vector3();
 const shipUp = new THREE.Vector3(0, 1, 0);
+const shipNose = new THREE.Vector3(0, 0, 1);
 const BRAKE_FLIP = 1 / 0.12;
+const LEAN_EASE = 4;
+const ROLL_MAX = 0.61;
 let brakeBlend = 0;
+let leanDepth = 0;
 
 function reset() {
   ship.x = SPAWN.x;
@@ -165,6 +175,8 @@ function reset() {
   pass.boosted.clear();
   pass.prevRad.clear();
   brakeBlend = 0;
+  leanDepth = 0;
+  pull.set(0, 0, 0);
 }
 
 reset();
@@ -755,7 +767,7 @@ const noseNeedle = new THREE.Line(
 craft.add(plume);
 craft.scale.setScalar(KM);
 scene.add(craft);
-// Heading tick stays on the flight frame when the hull flips.
+// Heading tick stays on the flight frame when the hull flips or leans.
 noseNeedle.scale.setScalar(KM);
 scene.add(noseNeedle);
 
@@ -1010,11 +1022,21 @@ function placeTick() {
   noseNeedle.quaternion.copy(orient);
 }
 
-// Bell points along travel while braking. The flight frame does not flip.
+// Leaned nose is what thrust and align follow. Flip and roll are the mesh only.
 function poseHull(dt) {
+  const info = wellPull(ship, bodies);
+  if (info.depth > 0) pull.set(info.x, info.y, info.z);
+  leanDepth += (info.depth - leanDepth) * (1 - Math.exp(-LEAN_EASE * dt));
+  const nose = leanNose(forward.x, forward.y, forward.z, pull.x, pull.y, pull.z, leanDepth);
+  leanedNose.set(nose.x, nose.y, nose.z);
+  leanQ.setFromUnitVectors(forward, leanedNose);
+  orientInv.copy(orient).invert();
+  localPull.copy(pull).applyQuaternion(orientInv);
+  const roll = Math.max(-ROLL_MAX, Math.min(ROLL_MAX, -localPull.x * ROLL_MAX * leanDepth));
+  rollQ.setFromAxisAngle(shipNose, roll);
   brakeBlend += ((brake ? 1 : 0) - brakeBlend) * (1 - Math.exp(-BRAKE_FLIP * dt));
   flipQ.setFromAxisAngle(shipUp, Math.PI * brakeBlend);
-  craft.quaternion.copy(orient).multiply(flipQ);
+  craft.quaternion.copy(leanQ).multiply(orient).multiply(rollQ).multiply(flipQ);
 }
 
 function chaseCam(danger, dt) {
@@ -1152,7 +1174,7 @@ function frame(now) {
   forward.set(0, 0, 1).applyQuaternion(orient);
   up.set(0, 1, 0).applyQuaternion(orient);
   poseHull(dt);
-  engineArcade(ship, forward.x, forward.y, forward.z, dt, thrust || boost, brake, boost);
+  engineArcade(ship, leanedNose.x, leanedNose.y, leanedNose.z, dt, thrust || boost, brake, boost);
 
   const hit = step(ship, bodies, pass, dt);
   if (hit.event === "crash") {
@@ -1171,7 +1193,7 @@ function frame(now) {
   }
 
   const { nearest, nearestD, inWell } = nearestBody();
-  alignArcade(ship, forward.x, forward.y, forward.z, dt, inWell);
+  alignArcade(ship, leanedNose.x, leanedNose.y, leanedNose.z, dt, inWell);
 
   craft.position.set(ship.x, ship.y, ship.z);
   placeTick();

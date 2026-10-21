@@ -197,6 +197,46 @@ export function ghostPath(ship, bodies, dt, n, out) {
   }
 }
 
+// Nose tips toward a pull. depth 0 leaves it. depth 1 blends 0.45 of the way, about 25° sideways.
+export function leanNose(nx, ny, nz, px, py, pz, depth) {
+  const a = 0.45 * Math.max(0, Math.min(1, depth));
+  const x = nx + px * a;
+  const y = ny + py * a;
+  const z = nz + pz * a;
+  const n = hypot3(x, y, z);
+  if (n < 1e-8) return { x: nx, y: ny, z: nz };
+  return { x: x / n, y: y / n, z: z / n };
+}
+
+// Strongest body currently inside its well. Unit vector toward it.
+// Depth is 0 at the well edge and 1 at the surface.
+export function wellPull(ship, bodies) {
+  let best = 0;
+  let x = 0;
+  let y = 0;
+  let z = 0;
+  let depth = 0;
+  for (const b of bodies) {
+    if (!(b.well > 0) || !(b.gm > 0)) continue;
+    const dx = b.x - ship.x;
+    const dy = b.y - ship.y;
+    const dz = b.z - ship.z;
+    const r = hypot3(dx, dy, dz);
+    if (r < 1e-4 || r >= b.well) continue;
+    const mag = gravityScale(b.gm, b.radius, r) * r;
+    if (mag <= best) continue;
+    best = mag;
+    x = dx / r;
+    y = dy / r;
+    z = dz / r;
+    const span = b.well - b.radius;
+    depth = span > 1e-4 ? (b.well - r) / span : 1;
+    if (depth < 0) depth = 0;
+    if (depth > 1) depth = 1;
+  }
+  return { x, y, z, depth };
+}
+
 export function alignArcade(ship, nx, ny, nz, dt, inWell) {
   const speed = hypot3(ship.vx, ship.vy, ship.vz);
   if (speed < 1e-6) return;
@@ -335,6 +375,11 @@ export function selfCheck() {
   const aNear = gravityScale(1, 10, 10) * 10;
   const aFar = gravityScale(1, 10, 40) * 40;
   assert(aNear / aFar > 16, "close bite steeper than 1/r^2");
+
+  const straight = leanNose(0, 0, 1, 1, 0, 0, 0);
+  assert(Math.abs(straight.x) < 1e-9 && Math.abs(straight.z - 1) < 1e-9, "lean depth 0");
+  const tipped = leanNose(0, 0, 1, 1, 0, 0, 1);
+  assert(tipped.x > 0.3 && tipped.x < 0.5 && tipped.z > 0.8, "lean tips toward pull");
 }
 
 // node src/physics.js

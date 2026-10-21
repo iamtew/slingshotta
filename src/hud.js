@@ -33,6 +33,16 @@ export function projectRadar(rel, orient) {
   return { x, y, elev };
 }
 
+function fmtDist(m) {
+  if (m < 1000) return m.toFixed(0) + " m";
+  const km = m / 1000;
+  return (km < 10 ? km.toFixed(1) : km.toFixed(0)) + " km";
+}
+
+function fmtSpeed(mps) {
+  return mps.toFixed(0) + " m/s";
+}
+
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
 }
@@ -45,6 +55,8 @@ export function selfCheck() {
   assert(above.elev > 0 && Math.abs(above.x) < 1e-6 && Math.abs(above.y) < 1e-6, "above maps to stem");
   const far = projectRadar({ x: 0, y: 0, z: RADAR_RANGE * 4 }, id);
   assert(Math.abs(far.y - 1) < 1e-6, "clamp to rim");
+  assert(fmtDist(847) === "847 m" && fmtDist(1500) === "1.5 km", "dist units");
+  assert(fmtDist(210000) === "210 km" && fmtSpeed(40) === "40 m/s", "km and speed");
 }
 
 if (typeof process !== "undefined" && process.argv[1]?.endsWith("hud.js")) {
@@ -114,7 +126,7 @@ export async function createHud() {
   const left = new Container();
   const leftBg = new Graphics();
   const speedLabel = new Text({ text: "SPEED", style: LABEL });
-  const speedVal = new Text({ text: "0 km/s", style: VALUE });
+  const speedVal = new Text({ text: "0 m/s", style: VALUE });
   const driveVal = new Text({ text: "COAST", style: LABEL });
   speedLabel.position.set(16, 12);
   speedVal.position.set(16, 30);
@@ -207,7 +219,7 @@ export async function createHud() {
         warn.visible = false;
         return;
       }
-      speedVal.text = state.speed.toFixed(0) + " km/s";
+      speedVal.text = fmtSpeed(state.speed);
       let drive = "COAST";
       let driveFill = 0x8aa0b8;
       if (state.boost) {
@@ -227,7 +239,7 @@ export async function createHud() {
       driveVal.style.fill = driveFill;
 
       bodyName.text = state.nearest.id;
-      bodyDist.text = state.nearest.dist.toFixed(0) + " km";
+      bodyDist.text = fmtDist(state.nearest.dist);
       bodyZone.text = state.nearest.zone.toUpperCase();
       bodyZone.style.fill =
         state.nearest.zone === "band" ? 0x7ecbff : state.nearest.zone === "well" ? 0xff9a3c : 0x8aa0b8;

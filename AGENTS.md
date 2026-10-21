@@ -27,7 +27,7 @@ Any static server, then open the root. `file://` will not load the module.
 
 World stays low-spec: pixel ratio 1, antialias off, no postprocessing. Pixi HUD may use `min(2, devicePixelRatio)`. Layout must fit 1440x900 with no page scroll. HUD sits on the bottom center: speed left of the radar, nearest body right of it. The sun and nebula live on a camera-locked sky, not as bodies in the system.
 
-World units are kilometres. `KM` in `src/physics.js` is the feel-preserving scale (Vela radius 6000 km, same arcade clock as the old unit system).
+World units are metres. `KM` in `src/physics.js` is the feel-preserving scale (Vela radius 6000 m, same arcade clock as the old unit system). HUD shows m/s and metres, kilometres past 1000 m.
 
 ## Input
 

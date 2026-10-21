@@ -5,7 +5,7 @@ const BOOST = 1.4;
 // At the closest point, below this counts as a sideways graze.
 const GRAZE = 0.45;
 const MAX_DT = 1 / 90;
-// World units are kilometres. 500 keeps the old arcade clock (Vela radius 12 → 6000 km).
+// World units are metres. 500 keeps the old arcade clock (Vela radius 12 → 6000 m).
 export const KM = 500;
 const MAIN = 26 * KM;
 const BRAKE = 32 * KM;

@@ -142,6 +142,10 @@ const up = new THREE.Vector3();
 const axis = new THREE.Vector3();
 const turn = new THREE.Quaternion();
 const camShake = new THREE.Vector3();
+const camQ = new THREE.Quaternion();
+const camFwd = new THREE.Vector3();
+const camUpDir = new THREE.Vector3();
+const CAM_FOLLOW = 5;
 
 function reset() {
   ship.x = SPAWN.x;
@@ -151,6 +155,7 @@ function reset() {
   ship.vy = SPAWN.vy;
   ship.vz = SPAWN.vz;
   orient.identity();
+  camQ.copy(orient);
   spin.set(0, 0, 0);
   pass.boosted.clear();
   pass.prevRad.clear();
@@ -911,21 +916,24 @@ function paintHud(now, nearest, nearestD, danger) {
   });
 }
 
-function chaseCam(danger) {
-  forward.set(0, 0, 1).applyQuaternion(orient);
-  up.set(0, 1, 0).applyQuaternion(orient);
+// Camera turns a bit slower than the ship, so turns show the hull side-on.
+// At MAX_SPIN the lag settles near MAX_SPIN / CAM_FOLLOW rad (~25 deg).
+function chaseCam(danger, dt) {
+  camQ.slerp(orient, 1 - Math.exp(-CAM_FOLLOW * dt));
+  camFwd.set(0, 0, 1).applyQuaternion(camQ);
+  camUpDir.set(0, 1, 0).applyQuaternion(camQ);
   const camBack = 14 * KM;
   const camUp = 4.2 * KM;
   const look = 10 * KM;
   const shake = danger * 0.55 * KM;
   camShake.set((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
   camera.position.set(
-    ship.x - forward.x * camBack + up.x * camUp + camShake.x,
-    ship.y - forward.y * camBack + up.y * camUp + camShake.y,
-    ship.z - forward.z * camBack + up.z * camUp + camShake.z
+    ship.x - camFwd.x * camBack + camUpDir.x * camUp + camShake.x,
+    ship.y - camFwd.y * camBack + camUpDir.y * camUp + camShake.y,
+    ship.z - camFwd.z * camBack + camUpDir.z * camUp + camShake.z
   );
-  camera.up.copy(up);
-  camera.lookAt(ship.x + forward.x * look, ship.y + forward.y * look, ship.z + forward.z * look);
+  camera.up.copy(camUpDir);
+  camera.lookAt(ship.x + camFwd.x * look, ship.y + camFwd.y * look, ship.z + camFwd.z * look);
 }
 
 function frame(now) {
@@ -1094,7 +1102,7 @@ function frame(now) {
     danger = Math.max(0, Math.min(1, danger));
   }
 
-  chaseCam(danger);
+  chaseCam(danger, dt);
   paintHud(now, nearest, nearestD, danger);
 
   hitchSky();

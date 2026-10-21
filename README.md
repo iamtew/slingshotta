@@ -10,7 +10,7 @@ From this folder:
 npx serve .
 ```
 
-Open the URL it prints. Click the view to capture the mouse.
+Open the URL it prints. Click the view to capture the mouse. Enter or Esc opens the menu.
 
 The blue arrow is where you are going. The nose is where you are pointing. W / S fires the engine along the nose. A / D and Space / C are the translation thrusters. Q / E rolls. Arrows pitch and yaw if you do not want the mouse.
 

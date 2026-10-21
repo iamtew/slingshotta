@@ -32,6 +32,7 @@ Attitude and velocity are separate. Turning the nose does not bend the path. The
 - Click the view for mouse pitch and yaw. Arrows do the same. Q / E roll.
 - W / S main engine. A / D strafe. Space / C up and down.
 - Gamepad: right stick aims, left stick strafes and thrusts, triggers throttle, bumpers roll.
+- Enter or Esc pauses and opens the menu (resume, restart, how to play, controls, help).
 
 ## Files
 

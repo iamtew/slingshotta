@@ -24,6 +24,7 @@ Relative URLs only, so GitHub Pages project sites (`/slingshotta/`) work.
 ## Run
 
 Any static server, then open the root. `file://` will not load the module.
+Meat Bag hosts `http://localhost:8000` during development because he's a real G.
 
 World stays low-spec: pixel ratio 1, antialias off, no postprocessing. Pixi HUD may use `min(2, devicePixelRatio)`. Layout must fit 1440x900 with no page scroll. HUD sits on the bottom center: speed left of the radar, nearest body right of it. The sun and nebula live on a camera-locked sky, not as bodies in the system.
 

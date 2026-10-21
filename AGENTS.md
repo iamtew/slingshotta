@@ -35,7 +35,7 @@ World units are metres. `KM` in `src/physics.js` is the feel-preserving scale (V
 Arcade flight. The ship flies where the nose points. A faint line trails the flown path. The ship is the Slingshot Racer: domed heat shield nose, green pressure vessels, big bell, and a truss with 8 thruster pods. RCS jets flash on those pods while turning; a jet fires when its torque agrees with the spin. The chase camera turns a bit slower than the ship, so turns show the hull side-on.
 
 - The white tick on the nose is heading. The dashed cyan line is a ballistic read of current velocity.
-- W thrust. S brake. Shift boost. No strafe.
+- W thrust. S brake: the hull yaws and the bell burns. Shift boost. No strafe.
 - Gamepad: either stick aims, triggers thrust and brake, B boosts, bumpers roll. Start opens the menu. D-pad or stick moves, A selects, B backs.
 - Enter or Esc pauses and opens the menu (resume, restart, how to play, controls, help).
 - Splash first: ship coasts, camera orbits it, any button continues. Menu Exit returns to splash. HUD drive reads RCS pitch/yaw/roll while jets fire.

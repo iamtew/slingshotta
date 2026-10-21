@@ -146,6 +146,11 @@ const camQ = new THREE.Quaternion();
 const camFwd = new THREE.Vector3();
 const camUpDir = new THREE.Vector3();
 const CAM_FOLLOW = 5;
+// Hull yaw on brake is not the flight frame. Camera and the nose tick stay on orient.
+const flipQ = new THREE.Quaternion();
+const shipUp = new THREE.Vector3(0, 1, 0);
+const BRAKE_FLIP = 1 / 0.12;
+let brakeBlend = 0;
 
 function reset() {
   ship.x = SPAWN.x;
@@ -159,6 +164,7 @@ function reset() {
   spin.set(0, 0, 0);
   pass.boosted.clear();
   pass.prevRad.clear();
+  brakeBlend = 0;
 }
 
 reset();
@@ -732,7 +738,7 @@ for (const sx of [-1, 1]) {
 const RCS_DZ = 0.18;
 
 const plume = new THREE.Mesh(
-  new THREE.ConeGeometry(0.36, 1.3, 6),
+  new THREE.ConeGeometry(0.36, 1.3, 12),
   new THREE.MeshBasicMaterial({ color: 0xffb15a })
 );
 plume.rotation.x = -Math.PI / 2;
@@ -746,9 +752,12 @@ const noseNeedle = new THREE.Line(
   new THREE.BufferGeometry().setFromPoints(noseRingPts),
   new THREE.LineBasicMaterial({ color: 0xf4f7fb })
 );
-craft.add(plume, noseNeedle);
+craft.add(plume);
 craft.scale.setScalar(KM);
 scene.add(craft);
+// Heading tick stays on the flight frame when the hull flips.
+noseNeedle.scale.setScalar(KM);
+scene.add(noseNeedle);
 
 const ghostPos = new Float32Array(GHOST_N * 3);
 const ghostGeo = new THREE.BufferGeometry();
@@ -839,6 +848,7 @@ function beginCrash() {
   crashMode = "burst";
   crashT = 0;
   craft.visible = false;
+  noseNeedle.visible = false;
   ghostLine.visible = false;
   document.exitPointerLock?.();
   keys.clear();
@@ -885,6 +895,7 @@ function restartPlay() {
   crashT = 0;
   crashEl.hidden = true;
   craft.visible = true;
+  noseNeedle.visible = true;
   clearDebris();
   clearTrail();
   ghostLine.visible = false;
@@ -994,6 +1005,18 @@ function paintHud(now, nearest, nearestD, danger) {
 
 // Camera turns a bit slower than the ship, so turns show the hull side-on.
 // At MAX_SPIN the lag settles near MAX_SPIN / CAM_FOLLOW rad (~25 deg).
+function placeTick() {
+  noseNeedle.position.set(ship.x, ship.y, ship.z);
+  noseNeedle.quaternion.copy(orient);
+}
+
+// Bell points along travel while braking. The flight frame does not flip.
+function poseHull(dt) {
+  brakeBlend += ((brake ? 1 : 0) - brakeBlend) * (1 - Math.exp(-BRAKE_FLIP * dt));
+  flipQ.setFromAxisAngle(shipUp, Math.PI * brakeBlend);
+  craft.quaternion.copy(orient).multiply(flipQ);
+}
+
 function chaseCam(danger, dt) {
   camQ.slerp(orient, 1 - Math.exp(-CAM_FOLLOW * dt));
   camFwd.set(0, 0, 1).applyQuaternion(camQ);
@@ -1022,6 +1045,7 @@ function frame(now) {
     step(ship, bodies, pass, dt);
     craft.position.set(ship.x, ship.y, ship.z);
     craft.quaternion.copy(orient);
+    placeTick();
     plume.visible = false;
     sampleTrail();
     splashAng += dt * 0.18;
@@ -1127,6 +1151,7 @@ function frame(now) {
 
   forward.set(0, 0, 1).applyQuaternion(orient);
   up.set(0, 1, 0).applyQuaternion(orient);
+  poseHull(dt);
   engineArcade(ship, forward.x, forward.y, forward.z, dt, thrust || boost, brake, boost);
 
   const hit = step(ship, bodies, pass, dt);
@@ -1149,9 +1174,12 @@ function frame(now) {
   alignArcade(ship, forward.x, forward.y, forward.z, dt, inWell);
 
   craft.position.set(ship.x, ship.y, ship.z);
-  craft.quaternion.copy(orient);
-  plume.visible = thrust || boost;
-  plume.scale.y = 0.35 + (boost ? 1.8 : 1.4);
+  placeTick();
+  plume.visible = thrust || boost || brakeBlend > 0.04;
+  // Wider on a brake burn so the flame shows past the heat shield, which faces the camera.
+  const along = 0.35 + (boost ? 1.8 : thrust ? 1.4 : 0) + 1.7 * brakeBlend;
+  const wide = 1 + 1.6 * brakeBlend;
+  plume.scale.set(wide, along, wide);
   for (const jet of rcsJets) jet.visible = jet.userData.torque.dot(spin) > RCS_DZ;
   sampleTrail();
   paintWells();

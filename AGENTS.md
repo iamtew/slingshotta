@@ -1,6 +1,6 @@
 # Slingshotta
 
-Movement game. Meat Bag flies a ship through a small system and slings it off planets.
+Movement game. Meat Bag flies a ship through a wide system and slings it off planets.
 
 ## Gravity, per pass
 
@@ -25,7 +25,7 @@ Relative URLs only, so GitHub Pages project sites (`/slingshotta/`) work.
 
 Any static server, then open the root. `file://` will not load the module.
 
-World stays low-spec: pixel ratio 1, antialias off, no postprocessing. Pixi HUD may use `min(2, devicePixelRatio)`. Layout must fit 1440x900 with no page scroll. HUD sits on the bottom center: speed left of the radar, nearest body right of it. A sun and colored gas sit in the system.
+World stays low-spec: pixel ratio 1, antialias off, no postprocessing. Pixi HUD may use `min(2, devicePixelRatio)`. Layout must fit 1440x900 with no page scroll. HUD sits on the bottom center: speed left of the radar, nearest body right of it. The sun and nebula live on a camera-locked sky, not as bodies in the system.
 
 World units are kilometres. `KM` in `src/physics.js` is the feel-preserving scale (Vela radius 6000 km, same arcade clock as the old unit system).
 
@@ -35,8 +35,9 @@ Arcade flight. The ship flies where the nose points. A faint line trails the flo
 
 - The white tick on the nose is heading. The dashed cyan line is a ballistic read of current velocity.
 - W thrust. S brake. Shift boost. No strafe.
-- Gamepad: either stick aims, triggers thrust and brake, B boosts, bumpers roll.
+- Gamepad: either stick aims, triggers thrust and brake, B boosts, bumpers roll. Start opens the menu. D-pad or stick moves, A selects, B backs.
 - Enter or Esc pauses and opens the menu (resume, restart, how to play, controls, help).
+- Splash first: ship coasts, camera orbits it, any button continues. Menu Exit returns to splash. HUD drive reads RCS pitch/yaw/roll while jets fire.
 
 ## Files
 

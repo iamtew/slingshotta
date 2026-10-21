@@ -6,7 +6,7 @@ Movement game. Meat Bag flies a ship through a small system and slings it off pl
 
 One visit to a planet's well, then the flags clear on the way out.
 
-- Inside the body: crash. Reset to the start.
+- Inside the body: crash. Burst, then a "You crashed" screen. Restart from there.
 - Sweet band, and the pass is mostly sideways: one speed boost along velocity.
 - Outside the well: gravity only. Asteroids crash, they do not pull.
 

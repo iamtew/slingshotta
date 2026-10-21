@@ -83,6 +83,8 @@ let pointerDown = false;
 let paused = false;
 const mouse = { x: 0, y: 0 };
 const menu = document.querySelector("#menu");
+const crashEl = document.querySelector("#crash");
+let crashMode = "play";
 
 function invertLabel(axis) {
   return axis[0].toUpperCase() + axis.slice(1) + ": " + (invert[axis] ? "inverted" : "normal");
@@ -111,16 +113,19 @@ function setMenu(open) {
 addEventListener("keydown", (e) => {
   if (e.code === "Enter" || e.code === "Escape") {
     e.preventDefault();
-    if (!e.repeat) setMenu(!paused);
+    if (!e.repeat) {
+      if (crashMode !== "play") restartPlay();
+      else setMenu(!paused);
+    }
     return;
   }
-  if (paused) return;
+  if (paused || crashMode !== "play") return;
   keys.add(e.code);
   if (e.code.startsWith("Arrow") || e.code === "Space") e.preventDefault();
 });
 addEventListener("keyup", (e) => keys.delete(e.code));
 addEventListener("pointerdown", () => {
-  if (!paused) pointerDown = true;
+  if (!paused && crashMode === "play") pointerDown = true;
 });
 addEventListener("pointerup", () => {
   pointerDown = false;
@@ -140,7 +145,7 @@ document.body.prepend(renderer.domElement);
 renderer.domElement.id = "view";
 renderer.domElement.addEventListener("click", () => {
   sawClick = true;
-  if (paused) return;
+  if (paused || crashMode !== "play") return;
   renderer.domElement.requestPointerLock();
 });
 menu.addEventListener("click", (e) => {
@@ -148,8 +153,7 @@ menu.addEventListener("click", (e) => {
   if (!act) return;
   if (act === "resume") setMenu(false);
   else if (act === "restart") {
-    reset();
-    clearTrail();
+    restartPlay();
     setMenu(false);
   } else if (act === "invert") {
     const btn = e.target.closest("button");
@@ -330,6 +334,75 @@ function sampleTrail() {
 
 clearTrail();
 
+const CRASH_BURST = 1;
+let crashT = 0;
+const debris = [];
+const debrisGeo = new THREE.BoxGeometry(0.22, 0.16, 0.4);
+
+function clearDebris() {
+  for (const bit of debris) scene.remove(bit.mesh);
+  debris.length = 0;
+}
+
+function beginCrash() {
+  crashMode = "burst";
+  crashT = 0;
+  craft.visible = false;
+  pathArrow.visible = false;
+  document.exitPointerLock?.();
+  keys.clear();
+  mouse.x = 0;
+  mouse.y = 0;
+  pointerDown = false;
+  clearDebris();
+  const wx = craft.position.x;
+  const wy = craft.position.y;
+  const wz = craft.position.z;
+  for (let i = 0; i < 8; i++) {
+    const mesh = new THREE.Mesh(debrisGeo, hullMat);
+    mesh.position.set(wx, wy, wz);
+    mesh.scale.setScalar(KM * (0.7 + Math.random() * 0.6));
+    mesh.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+    const kick = (4 + Math.random() * 6) * KM;
+    debris.push({
+      mesh,
+      vx: ship.vx + (Math.random() - 0.5) * kick,
+      vy: ship.vy + (Math.random() - 0.5) * kick,
+      vz: ship.vz + (Math.random() - 0.5) * kick,
+      sx: (Math.random() - 0.5) * 6,
+      sy: (Math.random() - 0.5) * 6,
+      sz: (Math.random() - 0.5) * 6,
+    });
+    scene.add(mesh);
+  }
+}
+
+function stepDebris(dt) {
+  for (const bit of debris) {
+    bit.mesh.position.x += bit.vx * dt;
+    bit.mesh.position.y += bit.vy * dt;
+    bit.mesh.position.z += bit.vz * dt;
+    bit.mesh.rotation.x += bit.sx * dt;
+    bit.mesh.rotation.y += bit.sy * dt;
+    bit.mesh.rotation.z += bit.sz * dt;
+  }
+}
+
+function restartPlay() {
+  reset();
+  crashMode = "play";
+  crashT = 0;
+  crashEl.hidden = true;
+  craft.visible = true;
+  clearDebris();
+  clearTrail();
+  pathArrow.visible = false;
+}
+
+crashEl.addEventListener("click", (e) => {
+  if (e.target.closest("button")?.dataset.act === "restart") restartPlay();
+});
+
 const hud = await createHud();
 function sizeView() {
   camera.aspect = innerWidth / innerHeight;
@@ -400,6 +473,21 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
 
+  if (crashMode !== "play") {
+    stepDebris(dt);
+    if (crashMode === "burst") {
+      crashT += dt;
+      if (crashT >= CRASH_BURST) {
+        crashMode = "overlay";
+        crashEl.hidden = false;
+      }
+    }
+    paintHud(now);
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+    return;
+  }
+
   thrust = false;
   brake = false;
   boost = keys.has("ShiftLeft") || keys.has("ShiftRight");
@@ -462,10 +550,16 @@ function frame(now) {
 
   const hit = step(ship, bodies, pass, dt);
   if (hit.event === "crash") {
-    say("Crash. Back to the start.");
-    reset();
+    beginCrash();
   } else if (hit.event === "boost") {
     say("Boost off " + hit.bodyId + ".");
+  }
+
+  if (crashMode !== "play") {
+    paintHud(now);
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+    return;
   }
 
   let nearest = planets[0];
@@ -479,7 +573,7 @@ function frame(now) {
       nearest = p;
     }
   }
-  if (hit.event !== "crash") alignArcade(ship, forward.x, forward.y, forward.z, dt, inWell);
+  alignArcade(ship, forward.x, forward.y, forward.z, dt, inWell);
 
   craft.position.set(ship.x, ship.y, ship.z);
   craft.quaternion.copy(orient);

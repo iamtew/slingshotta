@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Slingshotta</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #070b14;
+      color: #d7e2ea;
+      font: 14px/1.35 system-ui, sans-serif;
+    }
+    #view { display: block; width: 100vw; height: 100vh; }
+    #hud {
+      position: fixed;
+      left: 12px;
+      top: 12px;
+      max-width: 320px;
+      pointer-events: none;
+      text-shadow: 0 1px 2px #000;
+    }
+    #speed, #near { font-variant-numeric: tabular-nums; }
+    #hint { margin-top: 6px; opacity: 0.85; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="hud">
+    <div id="speed">speed 0</div>
+    <div id="near"></div>
+    <div id="hint">Graze a ring to boost. Too steep bounces. Hit the body and you crash.</div>
+  </div>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

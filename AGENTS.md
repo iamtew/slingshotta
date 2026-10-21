@@ -31,7 +31,7 @@ World units are kilometres. `KM` in `src/physics.js` is the feel-preserving scal
 
 ## Input
 
-Arcade flight. The ship flies where the nose points. A faint line trails the flown path. RCS jets flash on the hull while turning.
+Arcade flight. The ship flies where the nose points. A faint line trails the flown path. The ship is the Slingshot Racer: domed heat shield nose, green pressure vessels, big bell, and a truss with 8 thruster pods. RCS jets flash on those pods while turning; a jet fires when its torque agrees with the spin. The chase camera turns a bit slower than the ship, so turns show the hull side-on.
 
 - The white tick on the nose is heading. The dashed cyan line is a ballistic read of current velocity.
 - W thrust. S brake. Shift boost. No strafe.

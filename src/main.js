@@ -9,10 +9,10 @@ const TURN = 2.2;
 const MAX_SPIN = 2.2;
 // Locked mouse: pixels this frame are turn rate, then they clear.
 const MOUSE_TURN = 0.15;
-// All axes start inverted. Toggles on the Controls page.
-const invert = { pitch: true, yaw: true, roll: true };
+// Yaw and roll start inverted. Pitch starts normal. Toggles on the Controls page.
+const invert = { pitch: false, yaw: true, roll: true };
 // Wide of Vela, coasting +Z. Doing nothing misses. Steer in for the ring.
-const SPAWN = { x: -40 * KM, y: 0, z: -130 * KM, vx: 0, vy: 0, vz: 10 * KM };
+const SPAWN = { x: -90 * KM, y: 8 * KM, z: -420 * KM, vx: 0, vy: 0, vz: 12 * KM };
 const WELL_SHOW = 2.2;
 const GHOST_N = 14;
 const GHOST_DT = 0.14;
@@ -25,10 +25,10 @@ function finishBody(p, inMul, outMul) {
 
 const planets = [
   { id: "Vela", x: 0, y: 0, z: 0, radius: 12, gm: 1100, color: 0x3d8bfd },
-  { id: "Kor", x: 96, y: 0, z: 36, radius: 8, gm: 520, color: 0xe0a15a },
-  { id: "Mira", x: -28, y: 0, z: 108, radius: 16, gm: 1700, color: 0xc46b8a },
-  { id: "Nox", x: 54, y: -18, z: -72, radius: 5, gm: 180, color: 0x2a8f8a },
-  { id: "Rhea", x: -110, y: 12, z: 48, radius: 22, gm: 2400, color: 0xc9b48a },
+  { id: "Kor", x: 340, y: 8, z: 140, radius: 8, gm: 520, color: 0xe0a15a },
+  { id: "Mira", x: -120, y: 24, z: 380, radius: 16, gm: 1700, color: 0xc46b8a },
+  { id: "Nox", x: 200, y: -60, z: -280, radius: 5, gm: 180, color: 0x2a8f8a },
+  { id: "Rhea", x: -380, y: 50, z: 180, radius: 22, gm: 2400, color: 0xc9b48a },
 ];
 
 for (const p of planets) {
@@ -60,25 +60,21 @@ addMoon("Mira-1", planets[2], -26, 7, 5, 3.2, 70, 0xd9c4a0);
 addMoon("Rhea-1", planets[4], 34, -5, 12, 4.1, 95, 0x8aa0b0);
 
 const rocks = [];
-const BELT_R = 58 * KM;
-const ROCK_N = 70;
-const GATE = 16 * KM;
-for (let i = 0; i < ROCK_N; i++) {
-  const a = (i / ROCK_N) * Math.PI * 2 + (i % 5) * 0.07;
-  const rad = BELT_R + (((i * 17) % 11) - 5) * KM;
-  const x = Math.cos(a) * rad;
-  const y = ((i % 7) - 3) * 0.8 * KM;
-  const z = Math.sin(a) * rad;
-  // Keep the spawn coast clear. Rock pull would otherwise snag the inbound line.
-  if (Math.hypot(x - SPAWN.x, y) < GATE) continue;
-  const radius = (0.7 + (i % 5) * 0.18) * KM;
+function rockBlocked(x, y, z, radius) {
+  if (Math.hypot(x - SPAWN.x, y - SPAWN.y) < 32 * KM && z < SPAWN.z + 90 * KM) return true;
+  for (const p of planets) {
+    if (Math.hypot(x - p.x, y - p.y, z - p.z) < p.radius * 2.5 + radius) return true;
+  }
+  return false;
+}
+function addRock(x, y, z, radius, i) {
+  if (rockBlocked(x, y, z, radius)) return;
   const rock = {
-    id: "rock" + i,
+    id: "rock" + rocks.length,
     x,
     y,
     z,
     radius,
-    // Density like Vela. Stronger gm yanks the coast into the belt.
     gm: 0.64 * Math.pow(radius / KM, 3) * KM * KM * KM,
     kind: i % 3,
     sx: 0.7 + ((i * 3) % 5) * 0.12,
@@ -91,6 +87,48 @@ for (let i = 0; i < ROCK_N; i++) {
   finishBody(rock, 1.2, 1.7);
   rocks.push(rock);
 }
+for (let i = 0; i < 90; i++) {
+  const a = (i / 90) * Math.PI * 2 + (i % 5) * 0.07;
+  const rad = (170 + (((i * 17) % 11) - 5) * 4) * KM;
+  addRock(Math.cos(a) * rad, ((i % 7) - 3) * 2.2 * KM, Math.sin(a) * rad, (0.7 + (i % 5) * 0.2) * KM, i);
+}
+for (let a = 0; a < planets.length; a++) {
+  for (let b = a + 1; b < planets.length; b++) {
+    const pa = planets[a];
+    const pb = planets[b];
+    for (let k = 1; k <= 7; k++) {
+      const t = k / 8;
+      const j = a * 40 + b * 11 + k;
+      addRock(
+        pa.x + (pb.x - pa.x) * t + (((j * 13) % 17) - 8) * 6 * KM,
+        pa.y + (pb.y - pa.y) * t + (((j * 5) % 9) - 4) * 4 * KM,
+        pa.z + (pb.z - pa.z) * t + (((j * 7) % 15) - 7) * 6 * KM,
+        (0.8 + (k % 4) * 0.25) * KM,
+        j
+      );
+    }
+  }
+}
+for (let i = 0; i < 40; i++) {
+  addRock(
+    (((i * 37) % 61) - 30) * 14 * KM,
+    (((i * 11) % 13) - 6) * 8 * KM,
+    (((i * 19) % 59) - 29) * 14 * KM,
+    (0.9 + (i % 6) * 0.2) * KM,
+    i + 200
+  );
+}
+const bigRocks = [
+  [90, -24, -170, 6.8],
+  [-150, 28, 70, 5.4],
+  [210, 16, 90, 7.2],
+  [-40, -36, 220, 4.8],
+  [60, 40, 310, 6.1],
+  [-240, -12, -40, 5.6],
+  [130, -50, -90, 8.0],
+  [-90, 22, -200, 4.4],
+];
+bigRocks.forEach((r, i) => addRock(r[0] * KM, r[1] * KM, r[2] * KM, r[3] * KM, i + 80));
 
 const bodies = planets.concat(moons, rocks);
 const radarBodies = planets.concat(moons);
@@ -126,15 +164,154 @@ let paused = false;
 const mouse = { x: 0, y: 0 };
 const menu = document.querySelector("#menu");
 const crashEl = document.querySelector("#crash");
+const splashEl = document.querySelector("#splash");
 let crashMode = "play";
+let splash = true;
+let splashAng = 0;
+let menuPage = "home";
+let menuIx = 0;
+const padHeld = { start: false, a: false, b: false, up: false, down: false, any: false };
+
+function poseSplash() {
+  ship.x = 80 * KM;
+  ship.y = 48 * KM;
+  ship.z = -260 * KM;
+  ship.vx = 4 * KM;
+  ship.vy = 0;
+  ship.vz = 10 * KM;
+  orient.identity();
+  axis.set(1, 0, 0);
+  turn.setFromAxisAngle(axis, -0.22);
+  orient.multiply(turn);
+}
+poseSplash();
 
 function invertLabel(axis) {
   return axis[0].toUpperCase() + axis.slice(1) + ": " + (invert[axis] ? "inverted" : "normal");
 }
 
 function showMenuPage(name) {
+  menuPage = name;
   for (const id of ["home", "how", "controls", "help"]) {
     document.querySelector("#menu-" + id).hidden = id !== name;
+  }
+  menuIx = 0;
+  focusMenu();
+}
+
+function menuButtons() {
+  return [...document.querySelector("#menu-" + menuPage).querySelectorAll("button")];
+}
+
+function focusMenu() {
+  const btns = menuButtons();
+  if (!btns.length) return;
+  menuIx = (menuIx + btns.length) % btns.length;
+  for (let i = 0; i < btns.length; i++) btns[i].classList.toggle("on", i === menuIx);
+}
+
+function runMenu(act) {
+  if (act === "resume") setMenu(false);
+  else if (act === "restart") {
+    restartPlay();
+    setMenu(false);
+  } else if (act === "invert") {
+    const btn = menuButtons()[menuIx];
+    const axisName = btn?.dataset.axis;
+    if (!axisName) return;
+    invert[axisName] = !invert[axisName];
+    btn.textContent = invertLabel(axisName);
+  } else if (act === "exit") enterSplash();
+  else if (act === "back") showMenuPage("home");
+  else showMenuPage(act);
+}
+
+function enterSplash() {
+  restartPlay();
+  poseSplash();
+  splash = true;
+  splashAng = 0;
+  splashEl.hidden = false;
+  setMenu(false);
+}
+
+function endSplash() {
+  if (!splash) return;
+  splash = false;
+  splashEl.hidden = true;
+  sawClick = true;
+  reset();
+  clearTrail();
+  ghostLine.visible = false;
+}
+
+function rcsLabel() {
+  const ax = Math.abs(spin.x);
+  const ay = Math.abs(spin.y);
+  const az = Math.abs(spin.z);
+  if (ax < 0.18 && ay < 0.18 && az < 0.18) return "";
+  if (ax >= ay && ax >= az) return "RCS PITCH";
+  if (ay >= az) return "RCS YAW";
+  return "RCS ROLL";
+}
+
+function padEdge(name, now) {
+  const fire = now && !padHeld[name];
+  padHeld[name] = now;
+  return fire;
+}
+
+function pollUi() {
+  const pads = navigator.getGamepads?.() ?? [];
+  let start = false;
+  let a = false;
+  let b = false;
+  let up = false;
+  let down = false;
+  let any = false;
+  for (const pad of pads) {
+    if (!pad) continue;
+    if (pad.buttons.some((btn) => btn.pressed || btn.value > 0.25)) any = true;
+    if (pad.buttons[9]?.pressed || pad.buttons[8]?.pressed) start = true;
+    if (pad.buttons[0]?.pressed) a = true;
+    if (pad.buttons[1]?.pressed) b = true;
+    if (pad.buttons[12]?.pressed || (pad.axes[1] ?? 0) < -0.55) up = true;
+    if (pad.buttons[13]?.pressed || (pad.axes[1] ?? 0) > 0.55) down = true;
+  }
+  const startHit = padEdge("start", start);
+  const aHit = padEdge("a", a);
+  const bHit = padEdge("b", b);
+  const upHit = padEdge("up", up);
+  const downHit = padEdge("down", down);
+  const anyHit = padEdge("any", any);
+  if (splash) {
+    if (anyHit) endSplash();
+    return;
+  }
+  if (crashMode !== "play") {
+    if (startHit || aHit) restartPlay();
+    return;
+  }
+  if (startHit) {
+    setMenu(!paused);
+    return;
+  }
+  if (!paused) return;
+  if (upHit) {
+    menuIx -= 1;
+    focusMenu();
+  }
+  if (downHit) {
+    menuIx += 1;
+    focusMenu();
+  }
+  if (aHit) {
+    const act = menuButtons()[menuIx]?.dataset.act;
+    if (act) runMenu(act);
+  }
+  if (bHit) {
+    if (menuPage !== "home") showMenuPage("home");
+    else setMenu(false);
   }
 }
 
@@ -153,6 +330,11 @@ function setMenu(open) {
 }
 
 addEventListener("keydown", (e) => {
+  if (splash) {
+    e.preventDefault();
+    if (!e.repeat) endSplash();
+    return;
+  }
   if (e.code === "Enter" || e.code === "Escape") {
     e.preventDefault();
     if (!e.repeat) {
@@ -182,109 +364,121 @@ addEventListener("pointermove", (e) => {
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "low-power" });
 renderer.setPixelRatio(1);
 renderer.setSize(innerWidth, innerHeight);
-renderer.setClearColor(0x0a0814);
+renderer.setClearColor(0x1a0830);
 document.body.prepend(renderer.domElement);
 renderer.domElement.id = "view";
 renderer.domElement.addEventListener("click", () => {
+  if (splash) {
+    endSplash();
+    return;
+  }
   sawClick = true;
   if (paused || crashMode !== "play") return;
   renderer.domElement.requestPointerLock();
 });
 menu.addEventListener("click", (e) => {
-  const act = e.target.closest("button")?.dataset.act;
+  const btn = e.target.closest("button");
+  const act = btn?.dataset.act;
   if (!act) return;
-  if (act === "resume") setMenu(false);
-  else if (act === "restart") {
-    restartPlay();
-    setMenu(false);
-  } else if (act === "invert") {
-    const btn = e.target.closest("button");
-    const axisName = btn.dataset.axis;
-    invert[axisName] = !invert[axisName];
-    btn.textContent = invertLabel(axisName);
-  } else if (act === "back") showMenuPage("home");
-  else showMenuPage(act);
+  const btns = menuButtons();
+  const ix = btns.indexOf(btn);
+  if (ix >= 0) menuIx = ix;
+  runMenu(act);
 });
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1 * KM, 1600 * KM);
-scene.add(new THREE.AmbientLight(0x6a7a99, 0.32));
-
-// Past Vela on the spawn look, so it reads as the system's sun.
-const SUN_POS = new THREE.Vector3(12 * KM, 22 * KM, 180 * KM);
-const sunDir = new THREE.DirectionalLight(0xfff1d0, 1.15);
-sunDir.position.copy(SUN_POS);
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1 * KM, 5000 * KM);
+scene.add(new THREE.AmbientLight(0x9a6ab8, 0.42));
+// Sky sun lives on the dome. Light only; no body in the system.
+const sunDir = new THREE.DirectionalLight(0xffd4a8, 1.2);
+sunDir.position.set(0.45, 0.55, 0.7);
 scene.add(sunDir);
-const sunLamp = new THREE.PointLight(0xffdca0, 2.4, 900 * KM, 1.4);
-sunLamp.position.copy(SUN_POS);
-scene.add(sunLamp);
-const sunMesh = new THREE.Mesh(
-  new THREE.SphereGeometry(48 * KM, 32, 24),
-  new THREE.MeshBasicMaterial({ color: 0xffe7a0 })
-);
-sunMesh.position.copy(SUN_POS);
-sunMesh.frustumCulled = false;
-sunMesh.renderOrder = -2;
-scene.add(sunMesh);
-const sunHalo = new THREE.Mesh(
-  new THREE.SphereGeometry(70 * KM, 16, 12),
-  new THREE.MeshBasicMaterial({
-    color: 0xffb15a,
-    transparent: true,
-    opacity: 0.18,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  })
-);
-sunHalo.position.copy(SUN_POS);
-sunHalo.frustumCulled = false;
-sunHalo.renderOrder = -1;
-scene.add(sunHalo);
 
-const starGeo = new THREE.BufferGeometry();
-const starPos = new Float32Array(700 * 3);
-for (let i = 0; i < 700; i++) {
-  const u = Math.random();
-  const v = Math.random();
-  const theta = 2 * Math.PI * u;
-  const phi = Math.acos(2 * v - 1);
-  const rad = (280 + Math.random() * 220) * KM;
-  starPos[i * 3] = rad * Math.sin(phi) * Math.cos(theta);
-  starPos[i * 3 + 1] = rad * Math.cos(phi) * 0.5;
-  starPos[i * 3 + 2] = rad * Math.sin(phi) * Math.sin(theta);
-}
-starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
-scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xc9d6e2, size: 1.2 })));
+const SKY_R = 2800 * KM;
 
-function addCloud(color, cx, cy, cz, spread, n) {
-  const pos = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) {
-    pos[i * 3] = (cx + (Math.random() - 0.5) * spread) * KM;
-    pos[i * 3 + 1] = (cy + (Math.random() - 0.5) * spread * 0.45) * KM;
-    pos[i * 3 + 2] = (cz + (Math.random() - 0.5) * spread) * KM;
+function skyMap() {
+  const w = 2048;
+  const h = 1024;
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#14022a";
+  ctx.fillRect(0, 0, w, h);
+  const band = ctx.createLinearGradient(0, 0, 0, h);
+  band.addColorStop(0, "rgba(255,110,40,0.5)");
+  band.addColorStop(0.28, "rgba(220,30,140,0.45)");
+  band.addColorStop(0.5, "rgba(10,190,210,0.42)");
+  band.addColorStop(0.78, "rgba(70,40,200,0.4)");
+  band.addColorStop(1, "rgba(20,8,40,0.3)");
+  ctx.fillStyle = band;
+  ctx.fillRect(0, 0, w, h);
+  function blob(x, y, r, color) {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, color);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
   }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  scene.add(
-    new THREE.Points(
-      geo,
-      new THREE.PointsMaterial({
-        color,
-        size: 28,
-        transparent: true,
-        opacity: 0.38,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-        sizeAttenuation: true,
-      })
-    )
-  );
+  ctx.globalCompositeOperation = "lighter";
+  blob(1400, 420, 560, "rgba(210,30,150,0.55)");
+  blob(960, 160, 400, "rgba(255,90,30,0.42)");
+  blob(1800, 680, 480, "rgba(90,40,255,0.45)");
+  blob(160, 780, 360, "rgba(40,255,140,0.28)");
+  // Spawn looks +Z, about u=0.25 on a Three sphere. Sun sits there.
+  blob(420, 520, 380, "rgba(210,40,160,0.4)");
+  blob(640, 400, 440, "rgba(10,210,220,0.48)");
+  blob(700, 280, 280, "rgba(255,120,40,0.35)");
+  blob(512, 310, 90, "rgba(255,250,210,1)");
+  blob(512, 310, 180, "rgba(255,170,50,0.75)");
+  blob(512, 310, 300, "rgba(255,90,40,0.32)");
+  ctx.globalCompositeOperation = "source-over";
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  return tex;
 }
-addCloud(0xc45cff, 80, 40, -90, 90, 220);
-addCloud(0x2ec4b6, -120, -30, 70, 110, 260);
-addCloud(0xff9a3c, 40, -50, 140, 80, 180);
-addCloud(0x3d8bfd, -60, 55, -40, 95, 240);
-addCloud(0xe05a8c, 150, 20, 40, 70, 160);
+
+const sky = new THREE.Mesh(
+  new THREE.SphereGeometry(SKY_R, 48, 32),
+  new THREE.MeshBasicMaterial({ map: skyMap(), side: THREE.BackSide, depthWrite: false })
+);
+sky.frustumCulled = false;
+scene.add(sky);
+
+const starPos = new Float32Array(900 * 3);
+const starCol = new Float32Array(900 * 3);
+for (let i = 0; i < 900; i++) {
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+  const r = SKY_R * 0.96;
+  starPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+  starPos[i * 3 + 1] = r * Math.cos(phi);
+  starPos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+  const tint = Math.random();
+  starCol[i * 3] = tint > 0.85 ? 1 : tint > 0.7 ? 0.6 : 1;
+  starCol[i * 3 + 1] = tint > 0.85 ? 0.7 : tint > 0.7 ? 0.9 : 1;
+  starCol[i * 3 + 2] = tint > 0.85 ? 0.45 : tint > 0.7 ? 1 : 0.92;
+}
+const starGeo = new THREE.BufferGeometry();
+starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
+starGeo.setAttribute("color", new THREE.BufferAttribute(starCol, 3));
+sky.add(
+  new THREE.Points(
+    starGeo,
+    new THREE.PointsMaterial({
+      vertexColors: true,
+      size: 1.6,
+      sizeAttenuation: false,
+      depthWrite: false,
+    })
+  )
+);
+
+function hitchSky() {
+  sky.position.copy(camera.position);
+}
 
 function planetMap(hex) {
   const c = document.createElement("canvas");
@@ -452,22 +646,25 @@ const noseNeedle = new THREE.Line(
 );
 craft.add(nose, fuselage, canopy, podL, podR, finL, finR, bellL, bellR, plume, noseNeedle);
 // Cold gas. Exhaust is opposite the turn. Local +Z is the nose.
-const rcsGeo = new THREE.ConeGeometry(0.12, 0.55, 5);
-const rcsMat = new THREE.MeshBasicMaterial({ color: 0xd8f2ff });
-function rcsJet(x, y, z, rx, rz) {
+// Wide end is +Y. Small end sits on the hull, gas flares out.
+const rcsGeo = new THREE.CylinderGeometry(0.16, 0.035, 0.62, 6);
+const rcsMat = new THREE.MeshBasicMaterial({ color: 0xd8f2ff, transparent: true, opacity: 0.85 });
+const rcsOut = new THREE.Vector3();
+function rcsJet(x, y, z, dx, dy, dz) {
   const jet = new THREE.Mesh(rcsGeo, rcsMat);
   jet.position.set(x, y, z);
-  jet.rotation.set(rx, 0, rz);
+  rcsOut.set(dx, dy, dz).normalize();
+  jet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), rcsOut);
   jet.visible = false;
   craft.add(jet);
   return jet;
 }
-const rcsUp = rcsJet(0, 0.28, 0.85, 0, 0);
-const rcsDown = rcsJet(0, -0.28, 0.85, Math.PI, 0);
-const rcsRight = rcsJet(0.4, 0, 0.85, 0, -Math.PI / 2);
-const rcsLeft = rcsJet(-0.4, 0, 0.85, 0, Math.PI / 2);
-const rcsRollL = rcsJet(-0.62, 0.22, -0.15, 0, 0);
-const rcsRollR = rcsJet(0.62, 0.22, -0.15, 0, 0);
+const rcsUp = rcsJet(0, 0.28, 0.85, 0, 1, 0);
+const rcsDown = rcsJet(0, -0.28, 0.85, 0, -1, 0);
+const rcsRight = rcsJet(0.4, 0, 0.85, 1, 0, 0);
+const rcsLeft = rcsJet(-0.4, 0, 0.85, -1, 0, 0);
+const rcsRollL = rcsJet(-0.62, 0.22, -0.15, 0, 1, 0);
+const rcsRollR = rcsJet(0.62, 0.22, -0.15, 0, 1, 0);
 const RCS_DZ = 0.18;
 craft.scale.setScalar(KM);
 scene.add(craft);
@@ -615,6 +812,7 @@ function restartPlay() {
 crashEl.addEventListener("click", (e) => {
   if (e.target.closest("button")?.dataset.act === "restart") restartPlay();
 });
+splashEl.addEventListener("click", endSplash);
 
 const hud = await createHud();
 function sizeView() {
@@ -708,14 +906,61 @@ function paintHud(now, nearest, nearestD, danger) {
     orient,
     planets: radarBodies,
     danger,
+    rcs: rcsLabel(),
+    splash,
   });
 }
 
+function chaseCam(danger) {
+  forward.set(0, 0, 1).applyQuaternion(orient);
+  up.set(0, 1, 0).applyQuaternion(orient);
+  const camBack = 14 * KM;
+  const camUp = 4.2 * KM;
+  const look = 10 * KM;
+  const shake = danger * 0.55 * KM;
+  camShake.set((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+  camera.position.set(
+    ship.x - forward.x * camBack + up.x * camUp + camShake.x,
+    ship.y - forward.y * camBack + up.y * camUp + camShake.y,
+    ship.z - forward.z * camBack + up.z * camUp + camShake.z
+  );
+  camera.up.copy(up);
+  camera.lookAt(ship.x + forward.x * look, ship.y + forward.y * look, ship.z + forward.z * look);
+}
+
 function frame(now) {
+  pollUi();
+  if (splash) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    forward.set(0, 0, 1).applyQuaternion(orient);
+    engineArcade(ship, forward.x, forward.y, forward.z, dt, false, false, false);
+    step(ship, bodies, pass, dt);
+    craft.position.set(ship.x, ship.y, ship.z);
+    craft.quaternion.copy(orient);
+    plume.visible = false;
+    sampleTrail();
+    splashAng += dt * 0.18;
+    const dist = 18 * KM;
+    camera.position.set(
+      ship.x + Math.cos(splashAng) * dist,
+      ship.y + 5.5 * KM,
+      ship.z + Math.sin(splashAng) * dist
+    );
+    camera.up.set(0, 1, 0);
+    camera.lookAt(ship.x, ship.y, ship.z);
+    const near = nearestBody();
+    paintHud(now, near.nearest, near.nearestD, 0);
+    hitchSky();
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+    return;
+  }
   if (paused) {
     last = now;
     const near = nearestBody();
     paintHud(now, near.nearest, near.nearestD, 0);
+    hitchSky();
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
     return;
@@ -734,6 +979,7 @@ function frame(now) {
     }
     const near = nearestBody();
     paintHud(now, near.nearest, near.nearestD, 0);
+    hitchSky();
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
     return;
@@ -753,7 +999,7 @@ function frame(now) {
   if (keys.has("ArrowRight")) yaw += 1;
   if (keys.has("KeyA") || keys.has("KeyQ")) roll -= 1;
   if (keys.has("KeyD") || keys.has("KeyE")) roll += 1;
-  // Mouse right yaws right. Invert (default) makes mouse up pitch the nose down.
+  // Mouse right yaws right. Pitch starts normal: mouse up pitches the nose up.
   const mouseYaw = mouse.x * MOUSE_TURN;
   const mousePitch = mouse.y * MOUSE_TURN;
   mouse.x = 0;
@@ -809,6 +1055,7 @@ function frame(now) {
   if (crashMode !== "play") {
     const near = nearestBody();
     paintHud(now, near.nearest, near.nearestD, 0);
+    hitchSky();
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
     return;
@@ -847,20 +1094,10 @@ function frame(now) {
     danger = Math.max(0, Math.min(1, danger));
   }
 
-  const camBack = 14 * KM;
-  const camUp = 4.2 * KM;
-  const look = 10 * KM;
-  const shake = danger * 0.55 * KM;
-  camShake.set((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
-  camera.position.set(
-    ship.x - forward.x * camBack + up.x * camUp + camShake.x,
-    ship.y - forward.y * camBack + up.y * camUp + camShake.y,
-    ship.z - forward.z * camBack + up.z * camUp + camShake.z
-  );
-  camera.up.copy(up);
-  camera.lookAt(ship.x + forward.x * look, ship.y + forward.y * look, ship.z + forward.z * look);
+  chaseCam(danger);
   paintHud(now, nearest, nearestD, danger);
 
+  hitchSky();
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }

@@ -3,10 +3,14 @@ import { createPass, selfCheck, step } from "./physics.js";
 
 selfCheck();
 
-const ACCEL = 22;
-const YAW_RATE = 1.7;
-// Outside the belt. The nose misses Vela by about one band width.
-const SPAWN = { x: -96, y: 0, z: -72, speed: 12, yaw: Math.atan2(84, 88) };
+const MAIN = 26;
+const RCS_LIN = 18;
+const RCS_ANG = 2.6;
+// ponytail: weak spin damping so a tap coasts. Drop it for pure counter-thrust.
+const ANG_DAMP = 0.7;
+const MAX_SPIN = 2.2;
+// Wide of Vela, coasting +Z. Doing nothing misses. Steer in for the ring.
+const SPAWN = { x: -40, y: 0, z: -130, vx: 0, vy: 0, vz: 10 };
 
 const planets = [
   { id: "Vela", x: 0, y: 0, z: 0, radius: 12, gm: 1100, color: 0x3d8bfd },
@@ -43,16 +47,25 @@ for (let i = 0; i < ROCK_N; i++) {
 const bodies = planets.concat(rocks);
 const ship = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 };
 const pass = createPass();
-let yaw = 0;
+// Attitude is independent of velocity. Nose is local +Z.
+const orient = new THREE.Quaternion();
+const spin = new THREE.Vector3();
+const forward = new THREE.Vector3();
+const right = new THREE.Vector3();
+const up = new THREE.Vector3();
+const axis = new THREE.Vector3();
+const turn = new THREE.Quaternion();
+const prograde = new THREE.Vector3();
 
 function reset() {
   ship.x = SPAWN.x;
   ship.y = SPAWN.y;
   ship.z = SPAWN.z;
-  yaw = SPAWN.yaw;
-  ship.vx = Math.sin(yaw) * SPAWN.speed;
-  ship.vy = 0;
-  ship.vz = Math.cos(yaw) * SPAWN.speed;
+  ship.vx = SPAWN.vx;
+  ship.vy = SPAWN.vy;
+  ship.vz = SPAWN.vz;
+  orient.identity();
+  spin.set(0, 0, 0);
   pass.boosted.clear();
   pass.bounced.clear();
   pass.prevRad.clear();
@@ -62,22 +75,24 @@ reset();
 
 const keys = new Set();
 let pointerDown = false;
-let mouseYaw = 0;
+const mouse = { x: 0, y: 0 };
 
 addEventListener("keydown", (e) => {
   keys.add(e.code);
   if (e.code.startsWith("Arrow") || e.code === "Space") e.preventDefault();
 });
 addEventListener("keyup", (e) => keys.delete(e.code));
-addEventListener("pointerdown", (e) => {
+addEventListener("pointerdown", () => {
   pointerDown = true;
-  e.target.setPointerCapture?.(e.pointerId);
 });
 addEventListener("pointerup", () => {
   pointerDown = false;
 });
 addEventListener("pointermove", (e) => {
-  if (pointerDown) mouseYaw -= e.movementX * 0.004;
+  const locked = document.pointerLockElement != null;
+  if (!locked && !pointerDown) return;
+  mouse.x += e.movementX;
+  mouse.y += e.movementY;
 });
 
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "low-power" });
@@ -86,6 +101,9 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.setClearColor(0x070b14);
 document.body.prepend(renderer.domElement);
 renderer.domElement.id = "view";
+renderer.domElement.addEventListener("click", () => {
+  renderer.domElement.requestPointerLock();
+});
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 800);
@@ -146,18 +164,32 @@ rocks.forEach((rock, i) => {
 scene.add(rockMesh);
 
 const craft = new THREE.Group();
-const hull = new THREE.Mesh(
-  new THREE.ConeGeometry(0.7, 2.4, 6),
-  new THREE.MeshLambertMaterial({ color: 0xf2f4f8 })
+const hullMat = new THREE.MeshLambertMaterial({ color: 0xd7dee6 });
+const nose = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.5, 6), hullMat);
+nose.rotation.x = Math.PI / 2;
+nose.position.z = 1.05;
+const fuselage = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.4, 1.5), hullMat);
+const podL = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.22, 0.85), hullMat);
+podL.position.set(-0.62, 0, -0.15);
+const podR = podL.clone();
+podR.position.x = 0.62;
+const plume = new THREE.Mesh(
+  new THREE.ConeGeometry(0.22, 1.3, 6),
+  new THREE.MeshBasicMaterial({ color: 0xffb15a })
 );
-hull.rotation.x = Math.PI / 2;
-craft.add(hull);
+plume.rotation.x = -Math.PI / 2;
+plume.position.z = -1.15;
+craft.add(nose, fuselage, podL, podR, plume);
 scene.add(craft);
+
+// Where the ship is going, not where the nose points.
+const pathArrow = new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), new THREE.Vector3(), 6, 0x7ecbff, 1.3, 0.65);
+scene.add(pathArrow);
 
 const speedEl = document.querySelector("#speed");
 const nearEl = document.querySelector("#near");
 const hintEl = document.querySelector("#hint");
-const DEFAULT_HINT = "Graze a ring to boost. Too steep bounces. Hit the body and you crash.";
+const DEFAULT_HINT = "Click to steer. Mouse pitch/yaw, Q/E roll. W/S engine. A/D strafe, Space/C up/down. Blue arrow is your path.";
 let hintUntil = 0;
 let hintText = DEFAULT_HINT;
 
@@ -178,30 +210,70 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
 
-  let thrust = 0;
-  let yawInput = mouseYaw;
-  mouseYaw = 0;
-  if (keys.has("KeyW")) thrust += 1;
-  if (keys.has("KeyS")) thrust -= 0.45;
-  if (keys.has("KeyA") || keys.has("ArrowLeft")) yawInput += YAW_RATE * dt;
-  if (keys.has("KeyD") || keys.has("ArrowRight")) yawInput -= YAW_RATE * dt;
+  let main = 0;
+  let strafe = 0;
+  let lift = 0;
+  let pitch = 0;
+  let yaw = 0;
+  let roll = 0;
+  if (keys.has("KeyW")) main += 1;
+  if (keys.has("KeyS")) main -= 0.65;
+  if (keys.has("KeyA")) strafe -= 1;
+  if (keys.has("KeyD")) strafe += 1;
+  if (keys.has("Space")) lift += 1;
+  if (keys.has("KeyC") || keys.has("ControlLeft")) lift -= 1;
+  if (keys.has("ArrowUp")) pitch -= 1;
+  if (keys.has("ArrowDown")) pitch += 1;
+  if (keys.has("ArrowLeft")) yaw -= 1;
+  if (keys.has("ArrowRight")) yaw += 1;
+  if (keys.has("KeyQ")) roll -= 1;
+  if (keys.has("KeyE")) roll += 1;
+  // Mouse right yaws right. Mouse up pitches the nose up.
+  yaw += mouse.x * 0.08;
+  pitch += mouse.y * 0.08;
+  mouse.x = 0;
+  mouse.y = 0;
 
   const pads = navigator.getGamepads?.() ?? [];
   for (const pad of pads) {
     if (!pad) continue;
     const lx = pad.axes[0] ?? 0;
     const ly = pad.axes[1] ?? 0;
-    if (Math.abs(lx) > 0.18) yawInput -= lx * YAW_RATE * dt;
-    if (Math.abs(ly) > 0.18) thrust += -ly;
-    thrust += pad.buttons[7]?.value ?? 0;
+    const rx = pad.axes[2] ?? 0;
+    const ry = pad.axes[3] ?? 0;
+    if (Math.abs(lx) > 0.18) strafe += lx;
+    if (Math.abs(ly) > 0.18) main += -ly;
+    if (Math.abs(rx) > 0.18) yaw += rx;
+    if (Math.abs(ry) > 0.18) pitch += ry;
+    main += pad.buttons[7]?.value ?? 0;
+    main -= pad.buttons[6]?.value ?? 0;
+    if (pad.buttons[4]?.pressed) roll -= 1;
+    if (pad.buttons[5]?.pressed) roll += 1;
   }
-  thrust = Math.max(-0.45, Math.min(1, thrust));
-  yaw += yawInput;
+  main = Math.max(-1, Math.min(1, main));
+  strafe = Math.max(-1, Math.min(1, strafe));
+  lift = Math.max(-1, Math.min(1, lift));
 
-  const fx = Math.sin(yaw);
-  const fz = Math.cos(yaw);
-  ship.vx += fx * thrust * ACCEL * dt;
-  ship.vz += fz * thrust * ACCEL * dt;
+  spin.x += pitch * RCS_ANG * dt;
+  spin.y += yaw * RCS_ANG * dt;
+  spin.z += roll * RCS_ANG * dt;
+  spin.multiplyScalar(Math.exp(-ANG_DAMP * dt));
+  if (spin.length() > MAX_SPIN) spin.multiplyScalar(MAX_SPIN / spin.length());
+
+  const rate = spin.length();
+  if (rate > 1e-5) {
+    axis.copy(spin).multiplyScalar(1 / rate);
+    turn.setFromAxisAngle(axis, rate * dt);
+    orient.multiply(turn);
+    orient.normalize();
+  }
+
+  forward.set(0, 0, 1).applyQuaternion(orient);
+  right.set(1, 0, 0).applyQuaternion(orient);
+  up.set(0, 1, 0).applyQuaternion(orient);
+  ship.vx += (forward.x * main * MAIN + right.x * strafe * RCS_LIN + up.x * lift * RCS_LIN) * dt;
+  ship.vy += (forward.y * main * MAIN + right.y * strafe * RCS_LIN + up.y * lift * RCS_LIN) * dt;
+  ship.vz += (forward.z * main * MAIN + right.z * strafe * RCS_LIN + up.z * lift * RCS_LIN) * dt;
 
   const hit = step(ship, bodies, pass, dt);
   if (hit.event === "crash") {
@@ -214,18 +286,35 @@ function frame(now) {
   }
 
   craft.position.set(ship.x, ship.y, ship.z);
-  craft.rotation.y = yaw;
-
-  const camBack = 16;
-  const camUp = 7;
-  camera.position.set(ship.x - fx * camBack, ship.y + camUp, ship.z - fz * camBack);
-  camera.lookAt(ship.x, ship.y, ship.z);
+  craft.quaternion.copy(orient);
+  plume.visible = main > 0.05;
+  plume.scale.y = 0.35 + main * 1.4;
 
   const speed = Math.hypot(ship.vx, ship.vy, ship.vz);
+  if (speed > 0.35) {
+    prograde.set(ship.vx, ship.vy, ship.vz).multiplyScalar(1 / speed);
+    pathArrow.position.set(ship.x, ship.y, ship.z);
+    pathArrow.setDirection(prograde);
+    pathArrow.setLength(Math.min(16, 5 + speed * 0.25), 1.4, 0.7);
+    pathArrow.visible = true;
+  } else {
+    pathArrow.visible = false;
+  }
+
+  const camBack = 14;
+  const camUp = 4.2;
+  const look = 10;
+  camera.position.set(
+    ship.x - forward.x * camBack + up.x * camUp,
+    ship.y - forward.y * camBack + up.y * camUp,
+    ship.z - forward.z * camBack + up.z * camUp
+  );
+  camera.up.copy(up);
+  camera.lookAt(ship.x + forward.x * look, ship.y + forward.y * look, ship.z + forward.z * look);
   let nearest = planets[0];
   let nearestD = Infinity;
   for (const p of planets) {
-    const d = Math.hypot(ship.x - p.x, ship.z - p.z);
+    const d = Math.hypot(ship.x - p.x, ship.y - p.y, ship.z - p.z);
     if (d < nearestD) {
       nearestD = d;
       nearest = p;

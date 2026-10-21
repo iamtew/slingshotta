@@ -10,9 +10,11 @@ From this folder:
 npx serve .
 ```
 
-Open the URL it prints. Keyboard, mouse (hold and drag), or a gamepad.
+Open the URL it prints. Click the view to capture the mouse.
 
-W / S thrust. A / D or arrows yaw.
+The blue arrow is where you are going. The nose is where you are pointing. W / S fires the engine along the nose. A / D and Space / C are the translation thrusters. Q / E rolls. Arrows pitch and yaw if you do not want the mouse.
+
+A gamepad works too: right stick aims, left stick strafes and thrusts, triggers throttle, bumpers roll.
 
 ## GitHub Pages
 

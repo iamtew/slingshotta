@@ -27,9 +27,11 @@ Low-spec on purpose: pixel ratio 1, antialias off, no postprocessing. Layout mus
 
 ## Input
 
-- W / S thrust, A / D or arrows yaw
-- Mouse X yaws while the pointer is down
-- Gamepad: left stick yaws and thrusts, right trigger thrusts
+Attitude and velocity are separate. Turning the nose does not bend the path. The blue arrow is the path. Translation thrusters and the main engine change it.
+
+- Click the view for mouse pitch and yaw. Arrows do the same. Q / E roll.
+- W / S main engine. A / D strafe. Space / C up and down.
+- Gamepad: right stick aims, left stick strafes and thrusts, triggers throttle, bumpers roll.
 
 ## Files
 

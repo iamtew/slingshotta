@@ -153,6 +153,45 @@ export function engineArcade(ship, nx, ny, nz, dt, thrust, brake, boost) {
   }
 }
 
+// Ballistic ghost. Copies the ship, gravity only, no crash/boost/thrust.
+export function ghostPath(ship, bodies, dt, n, out) {
+  let x = ship.x;
+  let y = ship.y;
+  let z = ship.z;
+  let vx = ship.vx;
+  let vy = ship.vy;
+  let vz = ship.vz;
+  out[0] = x;
+  out[1] = y;
+  out[2] = z;
+  for (let i = 1; i < n; i++) {
+    let ax = 0;
+    let ay = 0;
+    let az = 0;
+    for (const b of bodies) {
+      if (!(b.gm > 0)) continue;
+      const dx = x - b.x;
+      const dy = y - b.y;
+      const dz = z - b.z;
+      const r = hypot3(dx, dy, dz);
+      if (r < 1e-4) continue;
+      const scale = b.gm / (r * r * r);
+      ax -= dx * scale;
+      ay -= dy * scale;
+      az -= dz * scale;
+    }
+    vx += ax * dt;
+    vy += ay * dt;
+    vz += az * dt;
+    x += vx * dt;
+    y += vy * dt;
+    z += vz * dt;
+    out[i * 3] = x;
+    out[i * 3 + 1] = y;
+    out[i * 3 + 2] = z;
+  }
+}
+
 export function alignArcade(ship, nx, ny, nz, dt, inWell) {
   const speed = hypot3(ship.vx, ship.vy, ship.vz);
   if (speed < 1e-6) return;
@@ -255,6 +294,38 @@ export function selfCheck() {
   alignArcade(side, 0, 0, 1, 0.5, false);
   assert(side.vz > 0 && side.vx < 10 * KM, "align");
   assert(Math.abs(hypot3(side.vx, side.vy, side.vz) - 10 * KM) < 1e-6, "align keeps speed");
+
+  const rock = {
+    id: "r",
+    x: 0,
+    y: 0,
+    z: 0,
+    radius: 4,
+    gm: 0,
+    well: 12,
+    sweetIn: 5,
+    sweetOut: 10,
+  };
+  const rockGraze = { x: 7, y: 0, z: -20, vx: 0, vy: 0, vz: 18 };
+  const rockPass = createPass();
+  let rockBoost = false;
+  for (let i = 0; i < 200; i++) {
+    const res = step(rockGraze, [rock], rockPass, 0.02);
+    assert(res.event !== "crash", "rock graze crashed");
+    if (res.event === "boost") rockBoost = true;
+  }
+  assert(rockBoost, "rock boost");
+
+  const rockHit = { x: 0, y: 0, z: 20, vx: 0, vy: 0, vz: -18 };
+  let rockCrash = false;
+  for (let i = 0; i < 200; i++) {
+    if (step(rockHit, [rock], createPass(), 0.02).event === "crash") rockCrash = true;
+  }
+  assert(rockCrash, "rock crash");
+
+  const ghost = new Float32Array(12);
+  ghostPath({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 10 }, [], 0.1, 4, ghost);
+  assert(ghost[11] > 2.9 && ghost[11] < 3.1, "ghost coast");
 }
 
 // node src/physics.js

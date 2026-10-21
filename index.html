@@ -57,6 +57,8 @@
     }
     #menu button:hover, #menu button:focus { border-color: #7ecbff; outline: none; }
     #menu p { margin: 0 0 10px; }
+    #menu ul { margin: 0 0 12px; padding-left: 1.2em; }
+    #menu li { margin: 0 0 6px; }
     #menu .foot { margin: 4px 0 0; opacity: 0.7; }
   </style>
   <script type="importmap">
@@ -71,7 +73,7 @@
   <div id="hud">
     <div id="speed">speed 0</div>
     <div id="near"></div>
-    <div id="hint">Click to steer. Mouse pitch/yaw, Q/E roll. W/S engine. A/D strafe, Space/C up/down. Blue arrow is your path. Enter or Esc: menu.</div>
+    <div id="hint">Click to steer. Mouse pitch/yaw, A/D roll. W thrust, S brake, Shift boost. Nose is the path. Enter or Esc: menu.</div>
   </div>
   <div id="menu" hidden>
     <div class="panel">
@@ -85,17 +87,30 @@
       </div>
       <div id="menu-how" hidden>
         <p>Graze a planet's ring for one speed boost. Aim too low, but not into the body, and you bounce off slower. Hit the body and you start over.</p>
-        <p>The blue arrow is your path. The nose is only where you point. Turn, then burn, or nudge the path with the translation thrusters.</p>
+        <p>Point the nose and the ship goes that way. Graze a ring for a sling boost. The blue arrow is a path read.</p>
         <button type="button" data-act="back">Back</button>
       </div>
       <div id="menu-controls" hidden>
-        <p>Click the view for the mouse. Mouse or arrows pitch and yaw. Q / E roll. W / S main engine. A / D strafe. Space / C up and down.</p>
-        <p>Gamepad: right stick aims, left stick strafes and thrusts, triggers throttle, bumpers roll.</p>
-        <p>Enter or Esc opens and closes this menu.</p>
+        <ul>
+          <li>Click the view to capture the mouse</li>
+          <li>Mouse / arrows: pitch and yaw</li>
+          <li>A / D or Q / E: roll</li>
+          <li>W: thrust</li>
+          <li>S: brake</li>
+          <li>Shift: boost</li>
+          <li>Gamepad sticks: aim</li>
+          <li>Triggers: thrust / brake</li>
+          <li>B: boost</li>
+          <li>Bumpers: roll</li>
+          <li>Enter / Esc: menu</li>
+        </ul>
+        <button type="button" data-act="invert" data-axis="pitch">Pitch: inverted</button>
+        <button type="button" data-act="invert" data-axis="yaw">Yaw: normal</button>
+        <button type="button" data-act="invert" data-axis="roll">Roll: normal</button>
         <button type="button" data-act="back">Back</button>
       </div>
       <div id="menu-help" hidden>
-        <p>A spin keeps going until you counter it or it eases off. Stop the spin before you line up a burn.</p>
+        <p>Move the mouse to turn. Stop the mouse to stop turning. Brake with S, do not reverse.</p>
         <p>Doing nothing at the start misses Vela. Steer into a ring when you want the boost. The belt rocks are solid.</p>
         <button type="button" data-act="back">Back</button>
       </div>

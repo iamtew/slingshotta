@@ -21,3 +21,7 @@ A gamepad works too: either stick aims, triggers thrust and brake, B boosts, bum
 Repo root is the site. Relative URLs, so a project site works.
 
 Settings, Pages, deploy from the branch that has `index.html` at the root.
+
+## License
+
+GNU Affero General Public License v3.0. See [LICENSE](LICENSE).

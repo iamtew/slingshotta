@@ -8,7 +8,8 @@ One visit to a planet's well, then the flags clear on the way out.
 
 - Inside the body: crash. Burst, then a "You crashed" screen. Restart from there.
 - Sweet band, and the pass is mostly sideways: one speed boost along velocity.
-- Outside the well: gravity only. Asteroids crash, they do not pull.
+- Outside the well: gravity only. Rocks have a small well and a thin band too.
+- Drawn wells are ship instrumentation (cyan/amber rings), not planet tint. They only show when the ship is close. Inside the inner band, the view shakes and the HUD warns.
 
 Do not replace this with a generic orbit sim. Boost or crash is the game.
 
@@ -24,15 +25,15 @@ Relative URLs only, so GitHub Pages project sites (`/slingshotta/`) work.
 
 Any static server, then open the root. `file://` will not load the module.
 
-World stays low-spec: pixel ratio 1, antialias off, no postprocessing. Pixi HUD may use `min(2, devicePixelRatio)`. Layout must fit 1440x900 with no page scroll. HUD sits on the bottom: speed left, 3D radar center, nearest body right. Planets show a spherical well haze.
+World stays low-spec: pixel ratio 1, antialias off, no postprocessing. Pixi HUD may use `min(2, devicePixelRatio)`. Layout must fit 1440x900 with no page scroll. HUD sits on the bottom center: speed left of the radar, nearest body right of it. A sun and colored gas sit in the system.
 
 World units are kilometres. `KM` in `src/physics.js` is the feel-preserving scale (Vela radius 6000 km, same arcade clock as the old unit system).
 
 ## Input
 
-Arcade flight. The ship flies where the nose points. The blue arrow is a path read. A faint line trails the flown path. RCS jets flash on the hull while turning.
+Arcade flight. The ship flies where the nose points. A faint line trails the flown path. RCS jets flash on the hull while turning.
 
-- Click the view for mouse pitch and yaw. Stop the mouse, stop the turn. Arrows do the same. A / D or Q / E roll. Pitch, yaw, and roll start inverted. Per-axis toggles on the Controls page.
+- The white tick on the nose is heading. The dashed cyan line is a ballistic read of current velocity.
 - W thrust. S brake. Shift boost. No strafe.
 - Gamepad: either stick aims, triggers thrust and brake, B boosts, bumpers roll.
 - Enter or Esc pauses and opens the menu (resume, restart, how to play, controls, help).

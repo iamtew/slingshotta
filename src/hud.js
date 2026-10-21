@@ -2,7 +2,7 @@
 // Pixi loads inside createHud so `node src/hud.js` can still run selfCheck.
 import { KM } from "./physics.js";
 
-export const RADAR_RANGE = 180 * KM;
+export const RADAR_RANGE = 480 * KM;
 const TILT = 0.45;
 const RADAR_R = 118;
 const STEM = 36;
@@ -200,9 +200,31 @@ export async function createHud() {
   return {
     update(state) {
       layout();
+      const splash = Boolean(state.splash);
+      left.visible = right.visible = radar.visible = !splash;
+      toast.visible = !splash && Boolean(state.toast);
+      if (splash) {
+        warn.visible = false;
+        return;
+      }
       speedVal.text = state.speed.toFixed(0) + " km/s";
-      driveVal.text = state.boost ? "BOOST" : state.thrust ? "THRUST" : state.brake ? "BRAKE" : "COAST";
-      driveVal.style.fill = state.boost ? 0xffb15a : state.thrust ? 0x7ecbff : 0x8aa0b8;
+      let drive = "COAST";
+      let driveFill = 0x8aa0b8;
+      if (state.boost) {
+        drive = "BOOST";
+        driveFill = 0xffb15a;
+      } else if (state.thrust) {
+        drive = "THRUST";
+        driveFill = 0x7ecbff;
+      } else if (state.brake) {
+        drive = "BRAKE";
+        driveFill = 0xff9a3c;
+      } else if (state.rcs) {
+        drive = state.rcs;
+        driveFill = 0xd8f2ff;
+      }
+      driveVal.text = drive;
+      driveVal.style.fill = driveFill;
 
       bodyName.text = state.nearest.id;
       bodyDist.text = state.nearest.dist.toFixed(0) + " km";

@@ -9,7 +9,7 @@
       margin: 0;
       height: 100%;
       overflow: hidden;
-      background: #070b14;
+      background: #14022a;
       color: #d7e2ea;
       font: 14px/1.35 Segoe UI, system-ui, sans-serif;
     }
@@ -25,7 +25,7 @@
       z-index: 1;
       pointer-events: none;
     }
-    #menu, #crash {
+    #menu, #crash, #splash {
       position: fixed;
       inset: 0;
       z-index: 2;
@@ -33,7 +33,30 @@
       place-items: center;
       background: rgba(7, 11, 20, 0.72);
     }
-    #menu[hidden], #crash[hidden] { display: none; }
+    #splash {
+      background: rgba(8, 2, 22, 0.28);
+      pointer-events: auto;
+      place-items: start center;
+      padding-top: 14vh;
+      text-align: center;
+    }
+    #menu[hidden], #crash[hidden], #splash[hidden] { display: none; }
+    #splash h1 {
+      margin: 0 0 18px;
+      font-size: 42px;
+      letter-spacing: 0.12em;
+      text-shadow: 0 0 18px #7ecbff88;
+    }
+    #splash .prompt {
+      margin: 0;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      opacity: 0.9;
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      50% { opacity: 0.35; }
+    }
     #menu .panel, #crash .panel {
       width: min(420px, calc(100vw - 32px));
       max-height: calc(100vh - 32px);
@@ -57,7 +80,7 @@
       font: inherit;
       cursor: pointer;
     }
-    #menu button:hover, #menu button:focus, #crash button:hover, #crash button:focus { border-color: #7ecbff; outline: none; }
+    #menu button:hover, #menu button:focus, #menu button.on, #crash button:hover, #crash button:focus { border-color: #7ecbff; outline: none; }
     #menu p, #crash p { margin: 0 0 10px; }
     #menu ul { margin: 0 0 12px; padding-left: 1.2em; }
     #menu li { margin: 0 0 6px; }
@@ -83,6 +106,7 @@
         <button type="button" data-act="how">How to play</button>
         <button type="button" data-act="controls">Controls</button>
         <button type="button" data-act="help">Help</button>
+        <button type="button" data-act="exit">Exit</button>
       </div>
       <div id="menu-how" hidden>
         <p>Graze a body's instrument ring for one speed boost. Hit the body and you crash. Rocks and moons pull a little too.</p>
@@ -101,9 +125,11 @@
           <li>Triggers: thrust / brake</li>
           <li>B: boost</li>
           <li>Bumpers: roll</li>
-          <li>Enter / Esc: menu</li>
+          <li>Enter / Esc / Start: menu</li>
+          <li>D-pad or stick: menu move</li>
+          <li>A: menu select, B: back</li>
         </ul>
-        <button type="button" data-act="invert" data-axis="pitch">Pitch: inverted</button>
+        <button type="button" data-act="invert" data-axis="pitch">Pitch: normal</button>
         <button type="button" data-act="invert" data-axis="yaw">Yaw: inverted</button>
         <button type="button" data-act="invert" data-axis="roll">Roll: inverted</button>
         <button type="button" data-act="back">Back</button>
@@ -113,14 +139,20 @@
         <p>Doing nothing at the start misses Vela. Steer into the rings when you want the boost. Belt rocks are solid and have a thin well.</p>
         <button type="button" data-act="back">Back</button>
       </div>
-      <p class="foot">Enter or Esc to close</p>
+      <p class="foot">Enter, Esc, or Start to close</p>
     </div>
   </div>
   <div id="crash" hidden>
     <div class="panel">
       <h1>You crashed</h1>
       <button type="button" data-act="restart">Restart</button>
-      <p class="foot">Enter or Esc to restart</p>
+      <p class="foot">Enter, Esc, Start, or A to restart</p>
+    </div>
+  </div>
+  <div id="splash">
+    <div>
+      <h1>Slingshotta</h1>
+      <p class="prompt">Press a button to continue</p>
     </div>
   </div>
   <script type="module" src="src/main.js"></script>

@@ -73,7 +73,6 @@ function reset() {
   orient.identity();
   spin.set(0, 0, 0);
   pass.boosted.clear();
-  pass.bounced.clear();
   pass.prevRad.clear();
 }
 
@@ -390,8 +389,6 @@ function frame(now) {
     reset();
   } else if (hit.event === "boost") {
     say("Boost off " + hit.bodyId + ".");
-  } else if (hit.event === "bounce") {
-    say("Bounced off " + hit.bodyId + ", slower.");
   }
 
   let nearest = planets[0];

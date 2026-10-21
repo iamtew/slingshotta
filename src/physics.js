@@ -2,7 +2,6 @@
 // ponytail: one global pass-flag set per body, fine while body count stays small.
 
 const BOOST = 1.4;
-const BOUNCE_DAMP = 0.6;
 // At the closest point, below this counts as a sideways graze.
 const GRAZE = 0.45;
 const MAX_DT = 1 / 90;
@@ -18,7 +17,6 @@ const ALIGN_WELL = 0.35;
 export function createPass() {
   return {
     boosted: new Set(),
-    bounced: new Set(),
     prevRad: new Map(),
   };
 }
@@ -69,7 +67,6 @@ function substep(ship, bodies, pass, dt) {
     const inWell = b.well > 0 && nr < b.well;
     if (!inWell) {
       pass.boosted.delete(b.id);
-      pass.bounced.delete(b.id);
       pass.prevRad.delete(b.id);
       continue;
     }
@@ -86,9 +83,6 @@ function substep(ship, bodies, pass, dt) {
     const peri = prev < 0 && vrad >= 0;
     pass.prevRad.set(b.id, vrad);
 
-    // Straight-line closest approach. Stays ~constant until gravity bends the path.
-    const impact = (Math.sqrt(Math.max(0, speed * speed - vrad * vrad)) / speed) * nr;
-
     const grazing =
       peri &&
       !pass.boosted.has(b.id) &&
@@ -102,29 +96,6 @@ function substep(ship, bodies, pass, dt) {
       pass.boosted.add(b.id);
       pass.prevRad.set(b.id, vrad * BOOST);
       event = "boost";
-      bodyId = b.id;
-      continue;
-    }
-
-    // Misses the band, but is not aimed into the body. Head-on (impact < radius) falls through and crashes.
-    const tooLow =
-      !pass.bounced.has(b.id) &&
-      !pass.boosted.has(b.id) &&
-      vrad < 0 &&
-      impact >= b.radius &&
-      impact < b.sweetIn;
-    if (tooLow) {
-      // Reflect across the tangent plane, then bleed speed.
-      ship.vx -= 2 * vrad * ux;
-      ship.vy -= 2 * vrad * uy;
-      ship.vz -= 2 * vrad * uz;
-      ship.vx *= BOUNCE_DAMP;
-      ship.vy *= BOUNCE_DAMP;
-      ship.vz *= BOUNCE_DAMP;
-      pass.bounced.add(b.id);
-      const after = ship.vx * ux + ship.vy * uy + ship.vz * uz;
-      pass.prevRad.set(b.id, after);
-      event = "bounce";
       bodyId = b.id;
     }
   }
@@ -228,17 +199,17 @@ export function selfCheck() {
     sweetIn: 14,
     sweetOut: 24,
   };
-  // Impact 12 sits between the surface and the sweet band.
+  // Impact 12 sits between the surface and the sweet band. Gravity only: no bounce, no boost.
   const steep = { x: 12, y: 0, z: 40, vx: 0, vy: 0, vz: -30 };
   const steepPass = createPass();
-  let bounced = false;
+  let steepBoost = false;
   for (let i = 0; i < 200; i++) {
     const res = step(steep, [well], steepPass, 0.02);
-    assert(res.event !== "crash", "steep crashed");
-    if (res.event === "bounce") bounced = true;
+    assert(res.event !== "bounce", "steep bounced");
+    if (res.event === "boost") steepBoost = true;
+    if (res.event === "crash") break;
   }
-  assert(bounced, "bounce");
-  assert(hypot3(steep.vx, steep.vy, steep.vz) < 30, "bounce not slower");
+  assert(!steepBoost, "steep boosted");
 
   const headOn = { x: 0, y: 0, z: 40, vx: 0, vy: 0, vz: -30 };
   let crashed = false;

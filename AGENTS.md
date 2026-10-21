@@ -8,10 +8,9 @@ One visit to a planet's well, then the flags clear on the way out.
 
 - Inside the body: crash. Reset to the start.
 - Sweet band, and the pass is mostly sideways: one speed boost along velocity.
-- In the well but aimed steeply at the body: reflect off the radial line and slow down.
 - Outside the well: gravity only. Asteroids crash, they do not pull.
 
-Do not replace this with a generic orbit sim. The three outcomes are the game.
+Do not replace this with a generic orbit sim. Boost or crash is the game.
 
 ## Stack
 

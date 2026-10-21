@@ -1,6 +1,6 @@
 # Slingshotta
 
-Fly a ship past planets. Graze the ring for a boost. Aim too steep and you bounce off slower. Hit the body and you crash.
+Fly a ship past planets. Graze the ring for a boost. Hit the body and you crash.
 
 ## Play
 

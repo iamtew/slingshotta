@@ -7,8 +7,8 @@ const TURN = 2.2;
 const MAX_SPIN = 2.2;
 // Locked mouse: pixels this frame are turn rate, then they clear.
 const MOUSE_TURN = 0.15;
-// Pitch starts inverted. Yaw and roll start normal. Toggles on the Controls page.
-const invert = { pitch: true, yaw: false, roll: false };
+// All axes start inverted. Toggles on the Controls page.
+const invert = { pitch: true, yaw: true, roll: true };
 // Wide of Vela, coasting +Z. Doing nothing misses. Steer in for the ring.
 const SPAWN = { x: -40, y: 0, z: -130, vx: 0, vy: 0, vz: 10 };
 

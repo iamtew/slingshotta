@@ -29,7 +29,7 @@ Low-spec on purpose: pixel ratio 1, antialias off, no postprocessing. Layout mus
 
 Arcade flight like No Man's Sky. The ship flies where the nose points. The blue arrow is a path read.
 
-- Click the view for mouse pitch and yaw. Stop the mouse, stop the turn. Arrows do the same. A / D or Q / E roll. Pitch starts inverted; yaw and roll start normal. Per-axis toggles on the Controls page.
+- Click the view for mouse pitch and yaw. Stop the mouse, stop the turn. Arrows do the same. A / D or Q / E roll. Pitch, yaw, and roll start inverted. Per-axis toggles on the Controls page.
 - W thrust. S brake. Shift boost. No strafe.
 - Gamepad: either stick aims, triggers thrust and brake, B boosts, bumpers roll.
 - Enter or Esc pauses and opens the menu (resume, restart, how to play, controls, help).

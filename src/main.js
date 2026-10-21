@@ -149,6 +149,7 @@ menu.addEventListener("click", (e) => {
   if (act === "resume") setMenu(false);
   else if (act === "restart") {
     reset();
+    clearTrail();
     setMenu(false);
   } else if (act === "invert") {
     const btn = e.target.closest("button");
@@ -270,6 +271,64 @@ scene.add(craft);
 // Path read. Arcade flight lines this up with the nose.
 const pathArrow = new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), new THREE.Vector3(), 6 * KM, 0x7ecbff, 1.3 * KM, 0.65 * KM);
 scene.add(pathArrow);
+
+const TRAIL_N = 80;
+const TRAIL_STEP = 0.8 * KM;
+const trailPos = new Float32Array(TRAIL_N * 3);
+const trailCol = new Float32Array(TRAIL_N * 3);
+for (let i = 0; i < TRAIL_N; i++) {
+  const t = 0.2 + 0.8 * (i / (TRAIL_N - 1));
+  trailCol[i * 3] = 0.49 * t;
+  trailCol[i * 3 + 1] = 0.8 * t;
+  trailCol[i * 3 + 2] = t;
+}
+const trailGeo = new THREE.BufferGeometry();
+trailGeo.setAttribute("position", new THREE.BufferAttribute(trailPos, 3));
+trailGeo.setAttribute("color", new THREE.BufferAttribute(trailCol, 3));
+trailGeo.setDrawRange(0, 1);
+const trailLine = new THREE.Line(
+  trailGeo,
+  new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false })
+);
+trailLine.frustumCulled = false;
+scene.add(trailLine);
+const lastTrail = new THREE.Vector3();
+let trailCount = 1;
+
+function clearTrail() {
+  for (let i = 0; i < TRAIL_N; i++) {
+    trailPos[i * 3] = ship.x;
+    trailPos[i * 3 + 1] = ship.y;
+    trailPos[i * 3 + 2] = ship.z;
+  }
+  trailCount = 1;
+  lastTrail.set(ship.x, ship.y, ship.z);
+  trailGeo.setDrawRange(0, 1);
+  trailGeo.attributes.position.needsUpdate = true;
+}
+
+function sampleTrail() {
+  const dx = ship.x - lastTrail.x;
+  const dy = ship.y - lastTrail.y;
+  const dz = ship.z - lastTrail.z;
+  if (Math.hypot(dx, dy, dz) < TRAIL_STEP) return;
+  lastTrail.set(ship.x, ship.y, ship.z);
+  if (trailCount < TRAIL_N) {
+    const i = trailCount++;
+    trailPos[i * 3] = ship.x;
+    trailPos[i * 3 + 1] = ship.y;
+    trailPos[i * 3 + 2] = ship.z;
+  } else {
+    trailPos.copyWithin(0, 3);
+    trailPos[(TRAIL_N - 1) * 3] = ship.x;
+    trailPos[(TRAIL_N - 1) * 3 + 1] = ship.y;
+    trailPos[(TRAIL_N - 1) * 3 + 2] = ship.z;
+  }
+  trailGeo.setDrawRange(0, trailCount);
+  trailGeo.attributes.position.needsUpdate = true;
+}
+
+clearTrail();
 
 const hud = await createHud();
 function sizeView() {
@@ -432,6 +491,7 @@ function frame(now) {
   rcsLeft.visible = spin.y < -RCS_DZ;
   rcsRollL.visible = spin.z > RCS_DZ;
   rcsRollR.visible = spin.z < -RCS_DZ;
+  sampleTrail();
 
   const speed = Math.hypot(ship.vx, ship.vy, ship.vz);
   if (speed > 0.35 * KM) {

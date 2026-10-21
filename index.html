@@ -11,19 +11,20 @@
       overflow: hidden;
       background: #070b14;
       color: #d7e2ea;
-      font: 14px/1.35 system-ui, sans-serif;
+      font: 14px/1.35 Segoe UI, system-ui, sans-serif;
     }
-    #view { display: block; width: 100vw; height: 100vh; }
-    #hud {
+    #view, #hud {
       position: fixed;
-      left: 12px;
-      top: 12px;
-      max-width: 320px;
-      pointer-events: none;
-      text-shadow: 0 1px 2px #000;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
     }
-    #speed, #near { font-variant-numeric: tabular-nums; }
-    #hint { margin-top: 6px; opacity: 0.85; }
+    #view { z-index: 0; }
+    #hud {
+      z-index: 1;
+      pointer-events: none;
+    }
     #menu {
       position: fixed;
       inset: 0;
@@ -38,8 +39,9 @@
       max-height: calc(100vh - 32px);
       overflow: auto;
       box-sizing: border-box;
-      background: #101826;
-      border: 1px solid #2a3b52;
+      background: rgba(10, 18, 28, 0.94);
+      border: 1px solid #ff9a3c88;
+      box-shadow: 0 0 0 1px #7ecbff33 inset;
       padding: 18px 20px 14px;
     }
     #menu h1 { margin: 0 0 12px; font-size: 18px; font-weight: 600; }
@@ -50,7 +52,7 @@
       padding: 8px 10px;
       text-align: left;
       color: inherit;
-      background: #182433;
+      background: #101a26;
       border: 1px solid #31465f;
       font: inherit;
       cursor: pointer;
@@ -64,17 +66,14 @@
   <script type="importmap">
   {
     "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "pixi.js": "https://cdn.jsdelivr.net/npm/pixi.js@8.12.0/dist/pixi.min.mjs"
     }
   }
   </script>
 </head>
 <body>
-  <div id="hud">
-    <div id="speed">speed 0</div>
-    <div id="near"></div>
-    <div id="hint">Click to steer. Mouse pitch/yaw, A/D roll. W thrust, S brake, Shift boost. Nose is the path. Enter or Esc: menu.</div>
-  </div>
+  <canvas id="hud"></canvas>
   <div id="menu" hidden>
     <div class="panel">
       <h1>Slingshotta</h1>
@@ -86,8 +85,8 @@
         <button type="button" data-act="help">Help</button>
       </div>
       <div id="menu-how" hidden>
-        <p>Graze a planet's ring for one speed boost. Aim too low, but not into the body, and you bounce off slower. Hit the body and you start over.</p>
-        <p>Point the nose and the ship goes that way. Graze a ring for a sling boost. The blue arrow is a path read.</p>
+        <p>Graze a planet's haze for one speed boost. Aim too low, but not into the body, and you bounce off slower. Hit the body and you start over.</p>
+        <p>Point the nose and the ship goes that way. The blue arrow is a path read. The round disc is a 3D radar.</p>
         <button type="button" data-act="back">Back</button>
       </div>
       <div id="menu-controls" hidden>
@@ -111,7 +110,7 @@
       </div>
       <div id="menu-help" hidden>
         <p>Move the mouse to turn. Stop the mouse to stop turning. Brake with S, do not reverse.</p>
-        <p>Doing nothing at the start misses Vela. Steer into a ring when you want the boost. The belt rocks are solid.</p>
+        <p>Doing nothing at the start misses Vela. Steer into the haze when you want the boost. The belt rocks are solid.</p>
         <button type="button" data-act="back">Back</button>
       </div>
       <p class="foot">Enter or Esc to close</p>

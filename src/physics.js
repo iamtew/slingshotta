@@ -6,9 +6,11 @@ const BOUNCE_DAMP = 0.6;
 // At the closest point, below this counts as a sideways graze.
 const GRAZE = 0.45;
 const MAX_DT = 1 / 90;
-const MAIN = 26;
-const BRAKE = 32;
-const CRUISE = 40;
+// World units are kilometres. 500 keeps the old arcade clock (Vela radius 12 → 6000 km).
+export const KM = 500;
+const MAIN = 26 * KM;
+const BRAKE = 32 * KM;
+const CRUISE = 40 * KM;
 const BOOST_MULT = 1.8;
 const ALIGN_SPACE = 2;
 const ALIGN_WELL = 0.35;
@@ -147,7 +149,7 @@ export function step(ship, bodies, pass, dt) {
   return { event, bodyId };
 }
 
-// NMS arcade: W adds along the nose under cruise, S kills speed, path weathervanes to the nose.
+// Arcade: W adds along the nose under cruise, S kills speed, path weathervanes to the nose.
 export function engineArcade(ship, nx, ny, nz, dt, thrust, brake, boost) {
   const cruise = boost ? CRUISE * BOOST_MULT : CRUISE;
   const force = boost ? MAIN * BOOST_MULT : MAIN;
@@ -269,19 +271,19 @@ export function selfCheck() {
   assert(boosted, "boost");
   assert(hypot3(graze.vx, graze.vy, graze.vz) > 30, "boost not faster");
 
-  const go = { vx: 0, vy: 0, vz: 5 };
+  const go = { vx: 0, vy: 0, vz: 5 * KM };
   engineArcade(go, 0, 0, 1, 0.1, true, false, false);
-  assert(go.vz > 5, "thrust");
-  const hot = { vx: 0, vy: 0, vz: 80 };
+  assert(go.vz > 5 * KM, "thrust");
+  const hot = { vx: 0, vy: 0, vz: CRUISE * 2 };
   engineArcade(hot, 0, 0, 1, 0.1, true, false, false);
-  assert(Math.abs(hot.vz - 80) < 1e-9, "no thrust above cruise");
-  const stop = { vx: 0, vy: 0, vz: 20 };
+  assert(Math.abs(hot.vz - CRUISE * 2) < 1e-9, "no thrust above cruise");
+  const stop = { vx: 0, vy: 0, vz: 20 * KM };
   engineArcade(stop, 0, 0, 1, 0.1, false, true, false);
-  assert(stop.vz < 20 && stop.vz > 0, "brake");
-  const side = { vx: 10, vy: 0, vz: 0 };
+  assert(stop.vz < 20 * KM && stop.vz > 0, "brake");
+  const side = { vx: 10 * KM, vy: 0, vz: 0 };
   alignArcade(side, 0, 0, 1, 0.5, false);
-  assert(side.vz > 0 && side.vx < 10, "align");
-  assert(Math.abs(hypot3(side.vx, side.vy, side.vz) - 10) < 1e-6, "align keeps speed");
+  assert(side.vz > 0 && side.vx < 10 * KM, "align");
+  assert(Math.abs(hypot3(side.vx, side.vy, side.vz) - 10 * KM) < 1e-6, "align keeps speed");
 }
 
 // node src/physics.js

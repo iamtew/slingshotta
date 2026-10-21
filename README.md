@@ -12,7 +12,7 @@ npx serve .
 
 Open the URL it prints. Click the view to capture the mouse. Enter or Esc opens the menu.
 
-The ship flies where the nose points. W thrusts, S brakes, Shift boosts. Mouse or arrows pitch and yaw. A / D rolls. The blue arrow is a path read.
+The ship flies where the nose points. W thrusts, S brakes, Shift boosts. Mouse or arrows pitch and yaw. A / D rolls. The blue arrow is a path read. The round disc is a 3D radar. Aim for the haze around a planet to graze. Distances and speeds are kilometres.
 
 A gamepad works too: either stick aims, triggers thrust and brake, B boosts, bumpers roll.
 

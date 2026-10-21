@@ -15,7 +15,9 @@ Do not replace this with a generic orbit sim. The three outcomes are the game.
 
 ## Stack
 
-Static site. `index.html` at the repo root. Three.js from the CDN import map in that file. No bundler, no package.json, no second renderer.
+Static site. `index.html` at the repo root. Three.js and PixiJS from the CDN import map in that file. No bundler, no package.json.
+
+Three.js is the world. PixiJS is the HUD overlay (`pointer-events: none` so clicks still hit the view). Pause menu stays HTML.
 
 Relative URLs only, so GitHub Pages project sites (`/slingshotta/`) work.
 
@@ -23,11 +25,13 @@ Relative URLs only, so GitHub Pages project sites (`/slingshotta/`) work.
 
 Any static server, then open the root. `file://` will not load the module.
 
-Low-spec on purpose: pixel ratio 1, antialias off, no postprocessing. Layout must fit 1440x900 with no page scroll. HUD stays in the corner.
+World stays low-spec: pixel ratio 1, antialias off, no postprocessing. Pixi HUD may use `min(2, devicePixelRatio)`. Layout must fit 1440x900 with no page scroll. HUD sits on the bottom: speed left, 3D radar center, nearest body right. Planets show a spherical well haze.
+
+World units are kilometres. `KM` in `src/physics.js` is the feel-preserving scale (Vela radius 6000 km, same arcade clock as the old unit system).
 
 ## Input
 
-Arcade flight like No Man's Sky. The ship flies where the nose points. The blue arrow is a path read.
+Arcade flight. The ship flies where the nose points. The blue arrow is a path read.
 
 - Click the view for mouse pitch and yaw. Stop the mouse, stop the turn. Arrows do the same. A / D or Q / E roll. Pitch, yaw, and roll start inverted. Per-axis toggles on the Controls page.
 - W thrust. S brake. Shift boost. No strafe.
@@ -37,4 +41,5 @@ Arcade flight like No Man's Sky. The ship flies where the nose points. The blue 
 ## Files
 
 - `src/physics.js` — step, arcade engine/align, and `selfCheck`. Change the rules here, not in the renderer.
+- `src/hud.js` — Pixi overlay, radar projection, HUD `selfCheck`.
 - `src/main.js` — scene, input, loop.

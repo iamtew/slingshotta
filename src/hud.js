@@ -78,6 +78,14 @@ const TOAST = {
   wordWrapWidth: 520,
   stroke: { color: 0x070b14, width: 4 },
 };
+const ALERT = {
+  fontFamily: "Segoe UI, system-ui, sans-serif",
+  fontSize: 22,
+  fill: 0xff6a4a,
+  fontWeight: "700",
+  letterSpacing: 3,
+  stroke: { color: 0x14080a, width: 4 },
+};
 
 function drawPanel(g, w, h) {
   g.roundRect(0, 0, w, h, 6);
@@ -133,26 +141,37 @@ export async function createHud() {
   const toast = new Text({ text: "", style: TOAST });
   toast.anchor.set(0.5, 1);
 
-  app.stage.addChild(left, right, radar, toast);
+  const warn = new Container();
+  const warnGfx = new Graphics();
+  const warnText = new Text({ text: "PROXIMITY", style: ALERT });
+  warnText.anchor.set(0.5, 0.5);
+  warn.addChild(warnGfx, warnText);
+  warn.visible = false;
 
-  const PANEL_W = 210;
+  app.stage.addChild(warn, left, right, radar, toast);
+
   const PANEL_H = 100;
+  const GAP = 18;
 
   function layout() {
     const w = app.screen.width;
     const h = app.screen.height;
     const pad = 18;
-    left.position.set(pad, h - PANEL_H - pad);
-    right.position.set(w - PANEL_W - pad, h - PANEL_H - pad);
-    radar.position.set(w * 0.5, h - 28 - RADAR_R * TILT);
-    toast.position.set(w * 0.5, h - PANEL_H - pad - 16);
+    const panelW = Math.min(210, Math.max(128, (w - RADAR_R * 2 - pad * 4) / 2));
+    const radarX = w * 0.5;
+    const radarY = h - 28 - RADAR_R * TILT;
+    const clusterY = h - PANEL_H - pad;
+    left.position.set(radarX - RADAR_R - GAP - panelW, clusterY);
+    right.position.set(radarX + RADAR_R + GAP, clusterY);
+    radar.position.set(radarX, radarY);
+    toast.position.set(radarX, clusterY - 36);
     toast.style.wordWrapWidth = Math.min(560, w - 40);
+    warnText.position.set(w * 0.5, h * 0.38);
+    leftBg.clear();
+    drawPanel(leftBg, panelW, PANEL_H);
+    rightBg.clear();
+    drawPanel(rightBg, panelW, PANEL_H);
   }
-
-  leftBg.clear();
-  drawPanel(leftBg, PANEL_W, PANEL_H);
-  rightBg.clear();
-  drawPanel(rightBg, PANEL_W, PANEL_H);
 
   // Static disc. Blips redraw each frame.
   radarPlate.clear();
@@ -188,10 +207,41 @@ export async function createHud() {
       bodyName.text = state.nearest.id;
       bodyDist.text = state.nearest.dist.toFixed(0) + " km";
       bodyZone.text = state.nearest.zone.toUpperCase();
-      bodyZone.style.fill = state.nearest.zone === "band" ? 0x7ecbff : state.nearest.zone === "well" ? 0xff9a3c : 0x8aa0b8;
+      bodyZone.style.fill =
+        state.nearest.zone === "band" ? 0x7ecbff : state.nearest.zone === "well" ? 0xff9a3c : 0x8aa0b8;
 
       toast.text = state.toast || "";
       toast.visible = Boolean(state.toast);
+
+      const danger = state.danger || 0;
+      warn.visible = danger > 0;
+      if (danger > 0) {
+        const w = app.screen.width;
+        const h = app.screen.height;
+        const pulse = 0.35 + 0.45 * Math.abs(Math.sin(state.now / 90));
+        const alpha = Math.min(1, danger) * pulse;
+        warnGfx.clear();
+        warnGfx.rect(0, 0, w, 10);
+        warnGfx.rect(0, h - 10, w, 10);
+        warnGfx.rect(0, 0, 10, h);
+        warnGfx.rect(w - 10, 0, 10, h);
+        warnGfx.fill({ color: 0xff3a28, alpha: 0.22 + alpha * 0.45 });
+        warnGfx.moveTo(18, 22);
+        warnGfx.lineTo(52, 22);
+        warnGfx.lineTo(18, 56);
+        warnGfx.moveTo(w - 18, 22);
+        warnGfx.lineTo(w - 52, 22);
+        warnGfx.lineTo(w - 18, 56);
+        warnGfx.moveTo(18, h - 22);
+        warnGfx.lineTo(52, h - 22);
+        warnGfx.lineTo(18, h - 56);
+        warnGfx.moveTo(w - 18, h - 22);
+        warnGfx.lineTo(w - 52, h - 22);
+        warnGfx.lineTo(w - 18, h - 56);
+        warnGfx.stroke({ width: 2, color: 0xff6a4a, alpha: 0.4 + alpha * 0.6 });
+        warnText.text = danger > 0.65 ? "IMPACT" : "PROXIMITY";
+        warnText.alpha = 0.55 + alpha * 0.45;
+      }
 
       radarBlips.clear();
       const sweep = (state.now / 1800) % 1;
@@ -211,7 +261,7 @@ export async function createHud() {
         radarBlips.moveTo(px, py);
         radarBlips.lineTo(px, ey);
         radarBlips.stroke({ width: 1.2, color: p.color, alpha: 0.7 });
-        radarBlips.circle(px, ey, 4.5);
+        radarBlips.circle(px, ey, p.moon ? 3 : 4.5);
         radarBlips.fill({ color: p.color, alpha: 0.95 });
         radarBlips.circle(px, py, 2);
         radarBlips.fill({ color: p.color, alpha: 0.5 });

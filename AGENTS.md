@@ -42,9 +42,17 @@ Arcade flight. The ship flies where the nose points. A faint line trails the flo
 - Enter, Esc, Start, or the Menu overlay pauses (resume, restart, how to play, controls, settings, help). Controls lists bindings. Settings holds invert, overlays, and gyro.
 - Splash first: ship coasts, camera orbits it, any button continues. Menu Exit returns to splash. HUD drive reads RCS pitch/yaw/roll while jets fire.
 
+Keep a file under ~500 lines. Split at a named concern before it grows past that.
+
 ## Files
 
 - `src/physics.js` — step, arcade engine/align, and `selfCheck`. Change the rules here, not in the renderer.
 - `src/hud.js` — Pixi overlay, radar projection, HUD `selfCheck`.
 - `src/tilt.js` — device tilt to screen yaw/pitch, and `selfCheck`.
-- `src/main.js` — scene, input, loop.
+- `src/world.js` — SPAWN and the hand-placed Vela system (planets, moons, rocks).
+- `src/ship.js` — Slingshot Racer mesh, RCS jets, plume, heading tick.
+- `src/sky.js` — camera-locked nebula/sun, stars, planet canvases.
+- `src/fx.js` — flown-path trail, ballistic ghost line, crash burst.
+- `src/input.js` — prefs, keys, mouse, pads, gyro. Does not import UI.
+- `src/ui.js` — splash, pause pages, crash overlay.
+- `src/main.js` — renderer, wells, camera, flight loop.

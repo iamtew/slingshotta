@@ -2,7 +2,7 @@
 
 Later sessions. One item at a time. No flight code in the session that wrote this file.
 
-Base today: hand-placed system in `src/main.js` (`planets`, moons, rocks, `SPAWN`), arcade step in `src/physics.js`, Pixi HUD in `src/hud.js`, HTML crash panel ("You crashed" plus flight stats). Preferences already live in `localStorage` (`slingshotta-input`).
+Base today: hand-placed system in `src/world.js` (`planets`, moons, rocks, `SPAWN`), arcade step in `src/physics.js`, Pixi HUD in `src/hud.js`, HTML crash panel ("You crashed" plus flight stats). Preferences already live in `localStorage` (`slingshotta-input`).
 
 Rules stay in `physics.js`, or one new module if that file would bloat. Each non-trivial rule gets a `selfCheck`.
 
@@ -29,7 +29,7 @@ Injury names stay a short fixed list (blackout, redout, burst vessel, and so on)
 
 ## 4. Seeded universe
 
-Move body placement out of the top of `src/main.js` into one generator. Same string in, same bodies out. A tiny numeric hash (no dependency) feeds the loops that already exist: planets, moons, belt rocks, rocks between neighbors.
+Move body placement out of `src/world.js` into one generator. Same string in, same bodies out. A tiny numeric hash (no dependency) feeds the loops that already exist: planets, moons, belt rocks, rocks between neighbors.
 
 The hand layout stays. Seed `classic` is today's Vela system and today's spawn, so free flight does not move.
 

@@ -93,10 +93,10 @@ const TOAST = {
   stroke: { color: 0x070b14, width: 4 },
 };
 const ALERT = {
-  fontFamily: "Segoe UI, system-ui, sans-serif",
+  fontFamily: "ENOCH, Segoe UI, system-ui, sans-serif",
   fontSize: 22,
   fill: 0xff6a4a,
-  fontWeight: "700",
+  fontWeight: "400",
   letterSpacing: 3,
   stroke: { color: 0x14080a, width: 4 },
 };

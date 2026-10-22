@@ -20,7 +20,7 @@ Controls in the pause menu lists every binding. Settings holds invert, touch ove
 
 ## Marks
 
-Source files live in `assets/` and stay black for the editor. The site reads `static/img/`. The splash paints the SVG with the title color; `just assets` tints the favicon to match. After changing the logo:
+Source files live in `assets/` and stay black for the editor. The site reads `static/img/` and `static/fonts/`. The splash paints the SVG with the title color; `just assets` tints the favicon to match. After changing the logo:
 
 ```
 just assets
@@ -37,3 +37,5 @@ Backlog for later sessions: [TODO.md](TODO.md).
 ## License
 
 GNU Affero General Public License v3.0. See [LICENSE](LICENSE).
+
+ENOCH (Modestype) in `static/fonts/` is personal-use unless you buy the commercial pack.

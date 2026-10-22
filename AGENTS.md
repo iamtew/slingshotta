@@ -48,6 +48,7 @@ Keep a file under ~500 lines. Split at a named concern before it grows past that
 
 - `assets/` — source marks (Affinity, logo SVG). Not served. Rebuild published copies with `just assets`.
 - `static/img/` — what the site loads: logo SVG and favicon.
+- `static/fonts/` — served WOFF. ENOCH is the display face for splash/menu/crash titles and HUD alerts.
 - `Justfile` — copy the logo and bake a light favicon from the black `assets/` SVG.
 - `src/physics.js` — step, arcade engine/align, and `selfCheck`. Change the rules here, not in the renderer.
 - `src/hud.js` — Pixi overlay, radar projection, HUD `selfCheck`.

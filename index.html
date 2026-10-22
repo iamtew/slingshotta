@@ -6,6 +6,12 @@
   <title>Slingshotta</title>
   <link rel="icon" href="static/img/favicon.ico">
   <style>
+    @font-face {
+      font-family: ENOCH;
+      font-style: normal;
+      font-weight: 400;
+      src: url(static/fonts/ENOCH.woff) format("woff");
+    }
     html, body {
       margin: 0;
       height: 100%;
@@ -126,6 +132,10 @@
       text-align: center;
     }
     #menu[hidden], #crash[hidden], #splash[hidden] { display: none; }
+    #splash h1, #menu h1, #crash h1, #menu .ship-name {
+      font-family: ENOCH, Segoe UI, system-ui, sans-serif;
+      font-weight: 400;
+    }
     #splash h1 {
       display: flex;
       align-items: center;
@@ -163,7 +173,7 @@
       box-shadow: 0 0 0 1px #7ecbff33 inset;
       padding: 18px 20px 14px;
     }
-    #menu h1, #crash h1 { margin: 0 0 12px; font-size: 18px; font-weight: 600; }
+    #menu h1, #crash h1 { margin: 0 0 12px; font-size: 18px; }
     #menu button, #crash button {
       display: block;
       width: 100%;
@@ -215,7 +225,6 @@
     #menu .ship-name {
       margin: 0 0 2px;
       font-size: 22px;
-      font-weight: 600;
       letter-spacing: 0.14em;
       text-transform: uppercase;
     }

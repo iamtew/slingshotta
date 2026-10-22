@@ -40,7 +40,7 @@ export function fmtDist(m) {
 }
 
 export function fmtSpeed(mps) {
-  return mps.toFixed(0) + " m/s";
+  return mps.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, "\u202f") + " m/s";
 }
 
 // Well danger, scaled G, ignition kick. HUD glitch and stage jitter read this.
@@ -72,6 +72,7 @@ export function selfCheck() {
   assert(Math.abs(far.y - 1) < 1e-6, "clamp to rim");
   assert(fmtDist(847) === "847 m" && fmtDist(1500) === "1.5 km", "dist units");
   assert(fmtDist(210000) === "210 km" && fmtSpeed(40) === "40 m/s", "km and speed");
+  assert(fmtSpeed(12345) === "12\u202f345 m/s", "speed groups");
   assert(strain(0, 0, 0) === 0 && strain(0.4, 0, 0) === 0.4, "strain danger");
   assert(strain(0, 1, 0) === 0.85 && strain(0.2, 0, 0.9) === 0.9, "strain mix");
   assert(spinMark(0.1) === 0 && spinMark(2.2) === 1 && spinMark(-2.2) === -1, "spin deadzone");

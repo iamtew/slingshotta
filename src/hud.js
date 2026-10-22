@@ -67,19 +67,21 @@ const LABEL = {
   fontFamily: "Segoe UI, system-ui, sans-serif",
   fontSize: 11,
   fill: 0x8aa0b8,
-  letterSpacing: 1.2,
+  letterSpacing: 2.4,
 };
 const VALUE = {
-  fontFamily: "Segoe UI, system-ui, sans-serif",
-  fontSize: 28,
+  fontFamily: "ui-monospace, Consolas, Segoe UI, monospace",
+  fontSize: 26,
   fill: 0xe8f0f6,
   fontWeight: "600",
+  letterSpacing: 1,
 };
 const NAME = {
-  fontFamily: "Segoe UI, system-ui, sans-serif",
+  fontFamily: "ui-monospace, Consolas, Segoe UI, monospace",
   fontSize: 18,
   fill: 0xe8f0f6,
   fontWeight: "600",
+  letterSpacing: 1,
 };
 const TOAST = {
   fontFamily: "Segoe UI, system-ui, sans-serif",
@@ -99,14 +101,27 @@ const ALERT = {
   stroke: { color: 0x14080a, width: 4 },
 };
 
-function drawPanel(g, w, h) {
-  g.roundRect(0, 0, w, h, 6);
-  g.fill({ color: 0x0a121c, alpha: 0.78 });
-  g.roundRect(0, 0, w, h, 6);
-  g.stroke({ width: 1.5, color: 0xff9a3c, alpha: 0.55 });
-  g.moveTo(10, 0);
-  g.lineTo(w - 10, 0);
-  g.stroke({ width: 2, color: 0x7ecbff, alpha: 0.7 });
+// Open chevron + ticks. No fill. mirror=true is the right (nearest) side.
+function drawBracket(g, w, h, mirror) {
+  const cut = 14;
+  const x0 = mirror ? w : 0;
+  const dir = mirror ? -1 : 1;
+  const xInner = x0 + dir * cut;
+  g.moveTo(xInner, 2);
+  g.lineTo(x0, cut);
+  g.lineTo(x0, h - cut);
+  g.lineTo(xInner, h - 2);
+  g.stroke({ width: 1.6, color: 0xff9a3c, alpha: 0.8 });
+  // Short cap, not a lid — a full top/bottom stroke reads as a box.
+  g.moveTo(xInner, 4);
+  g.lineTo(xInner + dir * 40, 4);
+  g.stroke({ width: 1.8, color: 0x7ecbff, alpha: 0.75 });
+  for (let i = 0; i < 6; i++) {
+    const x = xInner + dir * (10 + i * 16);
+    g.moveTo(x, h - 4);
+    g.lineTo(x, h - (i % 3 === 0 ? 12 : 8));
+  }
+  g.stroke({ width: 1, color: 0x7ecbff, alpha: 0.45 });
 }
 
 export async function createHud() {
@@ -129,9 +144,9 @@ export async function createHud() {
   const speedLabel = new Text({ text: "SPEED", style: LABEL });
   const speedVal = new Text({ text: "0 m/s", style: VALUE });
   const driveVal = new Text({ text: "COAST", style: LABEL });
-  speedLabel.position.set(16, 12);
-  speedVal.position.set(16, 30);
-  driveVal.position.set(16, 70);
+  speedLabel.position.set(18, 8);
+  speedVal.position.set(18, 24);
+  driveVal.position.set(18, 56);
   left.addChild(leftBg, speedLabel, speedVal, driveVal);
 
   const right = new Container();
@@ -140,16 +155,17 @@ export async function createHud() {
   const bodyName = new Text({ text: "—", style: NAME });
   const bodyDist = new Text({ text: "", style: LABEL });
   const bodyZone = new Text({ text: "", style: LABEL });
-  bodyLabel.position.set(16, 12);
-  bodyName.position.set(16, 30);
-  bodyDist.position.set(16, 56);
-  bodyZone.position.set(16, 74);
+  bodyLabel.anchor.set(1, 0);
+  bodyName.anchor.set(1, 0);
+  bodyDist.anchor.set(1, 0);
+  bodyZone.anchor.set(1, 0);
   right.addChild(rightBg, bodyLabel, bodyName, bodyDist, bodyZone);
 
   const radar = new Container();
   const radarPlate = new Graphics();
   const radarBlips = new Graphics();
   radar.addChild(radarPlate, radarBlips);
+  const rail = new Graphics();
 
   const toast = new Text({ text: "", style: TOAST });
   toast.anchor.set(0.5, 1);
@@ -161,7 +177,7 @@ export async function createHud() {
   warn.addChild(warnGfx, warnText);
   warn.visible = false;
 
-  app.stage.addChild(warn, left, right, radar, toast);
+  app.stage.addChild(warn, rail, left, right, radar, toast);
 
   const GAP = 18;
 
@@ -188,7 +204,7 @@ export async function createHud() {
     const portrait = h > w;
     const radarScale = portrait ? Math.max(0.42, w / 900) : short < 720 ? Math.max(0.52, short / 720) : 1;
     const rr = RADAR_R * radarScale;
-    const panelH = short < 720 ? 78 : 100;
+    const panelH = short < 720 ? 70 : 88;
     const pad = 12;
     // Portrait: pads sit under the cluster. Landscape: pads are corners, HUD stays bottom center.
     const padLift = portrait ? 210 : 0;
@@ -203,10 +219,28 @@ export async function createHud() {
     toast.position.set(radarX, clusterY - 36);
     toast.style.wordWrapWidth = Math.min(560, w - 40);
     warnText.position.set(w * 0.5, h * 0.38);
+    const rx = panelW - 18;
+    bodyLabel.position.set(rx, 8);
+    bodyName.position.set(rx, 24);
+    bodyDist.position.set(rx, 46);
+    bodyZone.position.set(rx, 64);
     leftBg.clear();
-    drawPanel(leftBg, panelW, panelH);
+    drawBracket(leftBg, panelW, panelH, false);
     rightBg.clear();
-    drawPanel(rightBg, panelW, panelH);
+    drawBracket(rightBg, panelW, panelH, true);
+    const railY = clusterY + panelH - 4;
+    const gap = rr + 8;
+    rail.clear();
+    rail.moveTo(left.x, railY);
+    rail.lineTo(radarX - gap, railY);
+    rail.moveTo(radarX + gap, railY);
+    rail.lineTo(right.x + panelW, railY);
+    rail.stroke({ width: 1, color: 0xff9a3c, alpha: 0.28 });
+    rail.moveTo(radarX - gap, railY - 6);
+    rail.lineTo(radarX - gap, railY + 6);
+    rail.moveTo(radarX + gap, railY - 6);
+    rail.lineTo(radarX + gap, railY + 6);
+    rail.stroke({ width: 1.2, color: 0x7ecbff, alpha: 0.45 });
   }
 
   // Static disc. Blips redraw each frame.
@@ -239,7 +273,7 @@ export async function createHud() {
     update(state) {
       layout();
       const splash = Boolean(state.splash);
-      left.visible = right.visible = radar.visible = !splash;
+      left.visible = right.visible = radar.visible = rail.visible = !splash;
       toast.visible = !splash && Boolean(state.toast);
       if (splash) {
         warn.visible = false;
@@ -281,11 +315,6 @@ export async function createHud() {
         const pulse = 0.35 + 0.45 * Math.abs(Math.sin(state.now / 90));
         const alpha = Math.min(1, danger) * pulse;
         warnGfx.clear();
-        warnGfx.rect(0, 0, w, 10);
-        warnGfx.rect(0, h - 10, w, 10);
-        warnGfx.rect(0, 0, 10, h);
-        warnGfx.rect(w - 10, 0, 10, h);
-        warnGfx.fill({ color: 0xff3a28, alpha: 0.22 + alpha * 0.45 });
         warnGfx.moveTo(18, 22);
         warnGfx.lineTo(52, 22);
         warnGfx.lineTo(18, 56);

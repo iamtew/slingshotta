@@ -26,7 +26,7 @@ Relative URLs only, so GitHub Pages project sites (`/slingshotta/`) work.
 Any static server, then open the root. `file://` will not load the module.
 Meat Bag hosts `http://localhost:8000` during development, Clanker doesn't need to host one, because Meat Bag is a real G.
 
-World stays low-spec: pixel ratio 1, antialias off, no postprocessing. Pixi HUD may use `min(2, devicePixelRatio)`. Layout must fit 1440x900 with no page scroll. HUD sits on the bottom center: speed left of the radar with a G needle beside it, nearest body right of it. High G reuses the inner-band shake and a Pixi tunnel vignette. The HUD glitches under that strain, draws light pitch/yaw/roll ticks while turning, and kicks with the camera when a burn starts. The sun and nebula live on a camera-locked sky, not as bodies in the system.
+World stays low-spec: pixel ratio 1, antialias off, no postprocessing. Pixi HUD may use `min(2, devicePixelRatio)`. Layout must fit 1440x900 with no page scroll. HUD sits on the bottom center: speed left of the radar with a G needle beside it, nearest body right of it. GRAZE / TOO STEEP / TOO LOW also sit as a center alert while inside a well. High G reuses the inner-band shake and a Pixi tunnel vignette. The HUD glitches under that strain, draws light pitch/yaw/roll ticks while turning, and kicks with the camera when a burn starts. The sun and nebula live on a camera-locked sky, not as bodies in the system.
 
 World units are metres. `KM` in `src/physics.js` is the feel-preserving arcade clock. Planets are large vs the racer (a Vela graze is several seconds at cruise) and far apart. HUD shows m/s and metres, kilometres past 1000 m.
 

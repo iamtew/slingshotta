@@ -34,6 +34,21 @@ function hypot3(x, y, z) {
   return Math.hypot(x, y, z);
 }
 
+// Live HUD read of the graze path. Boost still only fires at periapsis.
+export function passHint(ship, b) {
+  if (!(b.well > 0)) return "outside";
+  const nx = ship.x - b.x;
+  const ny = ship.y - b.y;
+  const nz = ship.z - b.z;
+  const r = hypot3(nx, ny, nz);
+  if (r >= b.well) return "outside";
+  if (r < b.sweetIn) return "low";
+  const speed = hypot3(ship.vx, ship.vy, ship.vz);
+  if (speed < 1e-4) return "steep";
+  const vrad = (ship.vx * nx + ship.vy * ny + ship.vz * nz) / r;
+  return Math.abs(vrad) / speed < GRAZE ? "graze" : "steep";
+}
+
 // Sideways change in velocity, not SI gees. Along-track thrust/brake/boost drop out.
 export function feltG(vx0, vy0, vz0, vx1, vy1, vz1, dt) {
   if (!(dt > 1e-8)) return 0;
@@ -366,6 +381,9 @@ export function selfCheck() {
   }
   assert(boosted, "boost");
   assert(hypot3(graze.vx, graze.vy, graze.vz) > 30, "boost not faster");
+  assert(passHint({ x: 18, y: 0, z: 0, vx: 0, vy: 0, vz: 30 }, band) === "graze", "hint graze");
+  assert(passHint({ x: 18, y: 0, z: 0, vx: 30, vy: 0, vz: 0 }, band) === "steep", "hint steep");
+  assert(passHint({ x: 12, y: 0, z: 0, vx: 0, vy: 0, vz: 30 }, band) === "low", "hint low");
 
   const go = { vx: 0, vy: 0, vz: 5 * KM };
   engineArcade(go, 0, 0, 1, 0.1, true, false, false);

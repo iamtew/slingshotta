@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { alignArcade, createPass, engineArcade, feltG, ghostPath, KM, leanNose, selfCheck, slingMix, slingNose, step, wellPull } from "./physics.js";
+import { alignArcade, createPass, engineArcade, feltG, ghostPath, KM, leanNose, passHint, selfCheck, slingMix, slingNose, step, wellPull } from "./physics.js";
 import { createHud, fmtDist, fmtSpeed, selfCheck as hudCheck } from "./hud.js";
 import { selfCheck as tiltCheck } from "./tilt.js";
 import {
@@ -581,12 +581,6 @@ let thrust = false;
 let brake = false;
 let boost = false;
 
-function zoneOf(p, d) {
-  if (d > p.well) return "outside";
-  if (d >= p.sweetIn) return "band";
-  return "well";
-}
-
 function nearestBody() {
   let nearest = bodies[0];
   let nearestD = Infinity;
@@ -640,7 +634,7 @@ function paintHud(now, nearest, nearestD, danger) {
     thrust,
     brake,
     boost,
-    nearest: { id: nearest.id, dist: nearestD, zone: zoneOf(nearest, nearestD) },
+    nearest: { id: nearest.id, dist: nearestD, zone: passHint(ship, nearest) },
     toast,
     ship,
     orient,

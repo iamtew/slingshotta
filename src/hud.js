@@ -43,6 +43,13 @@ export function fmtSpeed(mps) {
   return mps.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, "\u202f") + " m/s";
 }
 
+function zoneCue(zone) {
+  if (zone === "graze") return ["GRAZE", 0x7ecbff];
+  if (zone === "steep") return ["TOO STEEP", 0xff9a3c];
+  if (zone === "low") return ["TOO LOW", 0xff9a3c];
+  return ["OUTSIDE", 0x8aa0b8];
+}
+
 // Well danger, scaled G, ignition kick. HUD glitch and stage jitter read this.
 export function strain(danger, g, kick) {
   return Math.max(danger || 0, Math.min(1, Math.max(0, g || 0)) * 0.85, kick || 0);
@@ -76,6 +83,7 @@ export function selfCheck() {
   assert(strain(0, 0, 0) === 0 && strain(0.4, 0, 0) === 0.4, "strain danger");
   assert(strain(0, 1, 0) === 0.85 && strain(0.2, 0, 0.9) === 0.9, "strain mix");
   assert(spinMark(0.1) === 0 && spinMark(2.2) === 1 && spinMark(-2.2) === -1, "spin deadzone");
+  assert(zoneCue("graze")[0] === "GRAZE" && zoneCue("steep")[0] === "TOO STEEP", "zone cue");
 }
 
 if (typeof process !== "undefined" && process.argv[1]?.endsWith("hud.js")) {
@@ -462,37 +470,42 @@ export async function createHud() {
 
       bodyName.text = state.nearest.id;
       bodyDist.text = fmtDist(state.nearest.dist);
-      bodyZone.text = state.nearest.zone.toUpperCase();
-      bodyZone.style.fill =
-        state.nearest.zone === "band" ? 0x7ecbff : state.nearest.zone === "well" ? 0xff9a3c : 0x8aa0b8;
+      const [zoneText, zoneFill] = zoneCue(state.nearest.zone);
+      bodyZone.text = zoneText;
+      bodyZone.style.fill = zoneFill;
 
       toast.text = state.toast || "";
       toast.visible = Boolean(state.toast);
 
-      warn.visible = danger > 0;
-      if (danger > 0) {
+      const inWell = state.nearest.zone !== "outside";
+      warn.visible = inWell;
+      warnGfx.clear();
+      if (inWell) {
         const pulse = 0.35 + 0.45 * Math.abs(Math.sin(state.now / 90));
-        const alpha = Math.min(1, danger) * pulse;
-        warnGfx.clear();
-        warnGfx.moveTo(18, 22);
-        warnGfx.lineTo(52, 22);
-        warnGfx.lineTo(18, 56);
-        warnGfx.moveTo(sw - 18, 22);
-        warnGfx.lineTo(sw - 52, 22);
-        warnGfx.lineTo(sw - 18, 56);
-        warnGfx.moveTo(18, sh - 22);
-        warnGfx.lineTo(52, sh - 22);
-        warnGfx.lineTo(18, sh - 56);
-        warnGfx.moveTo(sw - 18, sh - 22);
-        warnGfx.lineTo(sw - 52, sh - 22);
-        warnGfx.lineTo(sw - 18, sh - 56);
-        warnGfx.stroke({ width: 2, color: 0xff6a4a, alpha: 0.4 + alpha * 0.6 });
-        warnText.text = danger > 0.65 ? "IMPACT" : "PROXIMITY";
-        warnText.alpha = 0.55 + alpha * 0.45;
+        const hit = danger > 0.65;
+        warnText.text = hit ? "IMPACT" : zoneText;
+        warnText.style.fill = hit ? 0xff6a4a : zoneFill;
+        warnText.alpha = danger > 0 ? 0.55 + Math.min(1, danger) * pulse * 0.45 : 0.92;
         warnGhost.text = warnText.text;
         warnGhost.position.set(warnText.x + 2, warnText.y);
         warnGhost.visible = load > 0.2;
         warnGhost.alpha = load * 0.4;
+        if (danger > 0) {
+          const alpha = Math.min(1, danger) * pulse;
+          warnGfx.moveTo(18, 22);
+          warnGfx.lineTo(52, 22);
+          warnGfx.lineTo(18, 56);
+          warnGfx.moveTo(sw - 18, 22);
+          warnGfx.lineTo(sw - 52, 22);
+          warnGfx.lineTo(sw - 18, 56);
+          warnGfx.moveTo(18, sh - 22);
+          warnGfx.lineTo(52, sh - 22);
+          warnGfx.lineTo(18, sh - 56);
+          warnGfx.moveTo(sw - 18, sh - 22);
+          warnGfx.lineTo(sw - 52, sh - 22);
+          warnGfx.lineTo(sw - 18, sh - 56);
+          warnGfx.stroke({ width: 2, color: 0xff6a4a, alpha: 0.4 + alpha * 0.6 });
+        }
       } else {
         warnGhost.visible = false;
       }

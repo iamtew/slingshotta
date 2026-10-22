@@ -52,7 +52,7 @@ Keep a file under ~500 lines. Split at a named concern before it grows past that
 - `src/physics.js` — step, arcade engine/align, and `selfCheck`. Change the rules here, not in the renderer.
 - `src/hud.js` — Pixi overlay, radar projection, HUD `selfCheck`.
 - `src/tilt.js` — device tilt to screen yaw/pitch, and `selfCheck`.
-- `src/world.js` — SPAWN and the hand-placed Vela system (planets, moons, rocks).
+- `src/world.js` — `layout(seed)`, daily and weekly seed strings. `classic` is the hand-placed Vela system. Seeds are at most 8 characters.
 - `src/ship.js` — Slingshot Racer mesh, RCS jets, plume, livery paint.
 - `src/shipview.js` — pause-menu ship preview, palettes, custom color.
 - `src/sky.js` — camera-locked nebula/sun, stars, planet canvases.

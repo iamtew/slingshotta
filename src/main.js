@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { alignArcade, createPass, engineArcade, ghostPath, KM, leanNose, selfCheck, slingMix, slingNose, step, wellPull } from "./physics.js";
 import { createHud, selfCheck as hudCheck } from "./hud.js";
 import { selfCheck as tiltCheck } from "./tilt.js";
-import { bodies, planets, moons, rocks, radarBodies, SPAWN } from "./world.js";
+import { bodies, planets, moons, rocks, radarBodies, SPAWN, selfCheck as worldCheck } from "./world.js";
 import { createRacer } from "./ship.js";
 import { createSky } from "./sky.js";
 import { createFx } from "./fx.js";
@@ -40,6 +40,7 @@ import {
 selfCheck();
 hudCheck();
 tiltCheck();
+worldCheck();
 
 const TURN = 2.2;
 const MAX_SPIN = 2.2;

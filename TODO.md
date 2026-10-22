@@ -2,7 +2,7 @@
 
 Later sessions. One item at a time. No flight code in the session that wrote this file.
 
-Base today: hand-placed system in `src/world.js` (`planets`, moons, rocks, `SPAWN`), arcade step in `src/physics.js`, Pixi HUD in `src/hud.js`, HTML crash panel ("Pilot crashed" plus flight stats). Preferences already live in `localStorage` (`slingshotta-input`).
+Base today: `layout("classic")` in `src/world.js` (hand-placed Vela: planets, moons, rocks, `SPAWN`), arcade step in `src/physics.js`, Pixi HUD in `src/hud.js`, HTML crash panel ("Pilot crashed" plus flight stats). Preferences already live in `localStorage` (`slingshotta-input`).
 
 Rules stay in `physics.js`, or one new module if that file would bloat. Each non-trivial rule gets a `selfCheck`.
 
@@ -27,11 +27,9 @@ Two modes, picked before flight (menu). Default Casual Pain.
 
 Injury names stay a short fixed list (blackout, redout, burst vessel, and so on), picked from how hard and how long the G was. No medical sim.
 
-## 4. Seeded universe
+## 4. Seeded universe (done)
 
-Move body placement out of `src/world.js` into one generator. Same string in, same bodies out. A tiny numeric hash (no dependency) feeds the loops that already exist: planets, moons, belt rocks, rocks between neighbors.
-
-The hand layout stays. Seed `classic` is today's Vela system and today's spawn, so free flight does not move.
+Done. `layout(seed)` in `src/world.js`. Same string in, same bodies out. Boot is `layout("classic")`, today's Vela system and spawn, so free flight does not move. A seed longer than 8 characters throws.
 
 - Daily seed, UTC date: `20261022`
 - Weekly seed, ISO week, Monday start: `2026WW43` (the double W is the written form)

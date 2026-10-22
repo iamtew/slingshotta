@@ -136,9 +136,12 @@
       letter-spacing: 0.12em;
       text-shadow: 0 0 18px #7ecbff88;
     }
-    #splash h1 img {
-      width: auto;
+    #splash h1 .logo {
+      width: 40px;
       height: 40px;
+      background: currentColor;
+      -webkit-mask: url(static/img/logo.svg) center / contain no-repeat;
+      mask: url(static/img/logo.svg) center / contain no-repeat;
     }
     #splash .prompt {
       margin: 0;
@@ -286,7 +289,7 @@
   <div id="splash">
     <div>
       <h1 class="brand">
-        <img src="static/img/logo.svg" alt="" width="40" height="40">
+        <span class="logo" aria-hidden="true"></span>
         Slingshotta
       </h1>
       <p class="prompt">Press a button to continue</p>

@@ -20,7 +20,7 @@ Controls in the pause menu lists every binding. Settings holds invert, touch ove
 
 ## Marks
 
-Source files live in `assets/`. The site reads `static/img/`. After changing the logo:
+Source files live in `assets/` and stay black for the editor. The site reads `static/img/`. The splash paints the SVG with the title color; `just assets` tints the favicon to match. After changing the logo:
 
 ```
 just assets

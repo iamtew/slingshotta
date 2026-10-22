@@ -18,6 +18,14 @@ A gamepad works too: either stick aims, triggers thrust and brake, B boosts, bum
 
 Controls in the pause menu lists every binding. Settings holds invert, touch overlays (auto / on / off), and gyro.
 
+## Marks
+
+Source files live in `assets/`. The site reads `static/img/`. After changing the logo:
+
+```
+just assets
+```
+
 ## GitHub Pages
 
 Repo root is the site. Relative URLs, so a project site works.

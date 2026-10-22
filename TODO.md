@@ -52,3 +52,7 @@ Pages cannot keep a write secret. Two steps, second one only after races feel wo
 - **Shared.** A score issue template plus a GitHub Action that appends sane rows (seed matches, time above zero and under a cap) to a JSON file the page fetches raw. Cheating is accepted. No second host, no token in the client. If that click-to-file-an-issue flow is too clumsy, stop there.
 
 Seed string builds the universe layout, which builds the gate chain. Flight step feeds felt G, which feeds juice and strain, which feeds the wreck list. A race writes a local best, and that best is what a later shared board would publish.
+
+## 7. Audio
+
+Does not wait on 1–6. File list, pools, and the mixer notes are in [AUDIO.md](AUDIO.md). Tick the files there as they get made. Code is `src/audio.js` in a later session.

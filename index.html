@@ -164,7 +164,20 @@
       font: inherit;
       cursor: pointer;
     }
-    #menu button:hover, #menu button:focus, #menu button.on, #crash button:hover, #crash button:focus { border-color: #7ecbff; outline: none; }
+    #menu button:hover, #menu button:focus, #menu button.on, #crash button:hover, #crash button:focus, #crash button.on { border-color: #7ecbff; outline: none; }
+    #crash-stats {
+      margin: 0 0 14px;
+      padding: 0;
+      list-style: none;
+    }
+    #crash-stats li {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 0 0 6px;
+      opacity: 0.88;
+    }
+    #crash-stats span { font-variant-numeric: tabular-nums; opacity: 1; }
     #menu p, #crash p { margin: 0 0 10px; }
     #menu ul { margin: 0 0 12px; padding-left: 1.2em; }
     #menu li { margin: 0 0 6px; }
@@ -255,9 +268,10 @@
   <div id="crash" hidden>
     <div class="panel">
       <h1>You crashed</h1>
+      <ul id="crash-stats"></ul>
       <button type="button" data-act="restart">Restart</button>
       <button type="button" data-act="menu">Menu</button>
-      <p class="foot">Enter, Esc, or A to restart. Start or Menu for the menu.</p>
+      <p class="foot">D-pad or stick to move. A to select. Start opens the menu.</p>
     </div>
   </div>
   <div id="splash">

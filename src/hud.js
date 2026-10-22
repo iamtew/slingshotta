@@ -33,13 +33,13 @@ export function projectRadar(rel, orient) {
   return { x, y, elev };
 }
 
-function fmtDist(m) {
+export function fmtDist(m) {
   if (m < 1000) return m.toFixed(0) + " m";
   const km = m / 1000;
   return (km < 10 ? km.toFixed(1) : km.toFixed(0)) + " km";
 }
 
-function fmtSpeed(mps) {
+export function fmtSpeed(mps) {
   return mps.toFixed(0) + " m/s";
 }
 

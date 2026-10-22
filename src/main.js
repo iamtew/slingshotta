@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { alignArcade, createPass, engineArcade, ghostPath, KM, leanNose, selfCheck, slingMix, slingNose, step, wellPull } from "./physics.js";
-import { createHud, selfCheck as hudCheck } from "./hud.js";
+import { createHud, fmtDist, fmtSpeed, selfCheck as hudCheck } from "./hud.js";
 import { screenTilt, selfCheck as tiltCheck } from "./tilt.js";
 
 selfCheck();
@@ -31,8 +31,12 @@ function savePrefs() {
   localStorage.setItem(STORE, JSON.stringify({ invert, overlays: inputPrefs.overlays, gyro: inputPrefs.gyro }));
 }
 loadPrefs();
+// Graze lap ~12 s at cruise. Rocks stay unscaled so the belt is not moons.
+const PLANET = 4;
+// Gaps between worlds. Spawn stays by Vela so the first planet still reads huge.
+const SPACE = 6;
 // Wide of Vela, coasting +Z. Doing nothing misses. Steer in for the ring.
-const SPAWN = { x: -90 * KM, y: 8 * KM, z: -420 * KM, vx: 0, vy: 0, vz: 12 * KM };
+const SPAWN = { x: -140 * KM, y: 8 * KM, z: -420 * KM, vx: 0, vy: 0, vz: 12 * KM };
 const WELL_SHOW = 2.2;
 const GHOST_N = 14;
 const GHOST_DT = 0.14;
@@ -52,11 +56,11 @@ const planets = [
 ];
 
 for (const p of planets) {
-  p.x *= KM;
-  p.y *= KM;
-  p.z *= KM;
-  p.radius *= KM;
-  p.gm *= KM * KM * KM;
+  p.x *= KM * SPACE;
+  p.y *= KM * SPACE;
+  p.z *= KM * SPACE;
+  p.radius *= KM * PLANET;
+  p.gm *= KM * KM * KM * PLANET * PLANET;
   finishBody(p, 1.25, 2.05);
 }
 
@@ -64,11 +68,11 @@ const moons = [];
 function addMoon(id, parent, ox, oy, oz, radius, gm, color) {
   const m = {
     id,
-    x: parent.x + ox * KM,
-    y: parent.y + oy * KM,
-    z: parent.z + oz * KM,
-    radius: radius * KM,
-    gm: gm * KM * KM * KM,
+    x: parent.x + ox * KM * PLANET,
+    y: parent.y + oy * KM * PLANET,
+    z: parent.z + oz * KM * PLANET,
+    radius: radius * KM * PLANET,
+    gm: gm * KM * KM * KM * PLANET * PLANET,
     color,
     moon: true,
   };
@@ -109,7 +113,7 @@ function addRock(x, y, z, radius, i) {
 }
 for (let i = 0; i < 90; i++) {
   const a = (i / 90) * Math.PI * 2 + (i % 5) * 0.07;
-  const rad = (170 + (((i * 17) % 11) - 5) * 4) * KM;
+  const rad = (170 + (((i * 17) % 11) - 5) * 4) * KM * SPACE;
   addRock(Math.cos(a) * rad, ((i % 7) - 3) * 2.2 * KM, Math.sin(a) * rad, (0.7 + (i % 5) * 0.2) * KM, i);
 }
 for (let a = 0; a < planets.length; a++) {
@@ -120,9 +124,9 @@ for (let a = 0; a < planets.length; a++) {
       const t = k / 8;
       const j = a * 40 + b * 11 + k;
       addRock(
-        pa.x + (pb.x - pa.x) * t + (((j * 13) % 17) - 8) * 6 * KM,
-        pa.y + (pb.y - pa.y) * t + (((j * 5) % 9) - 4) * 4 * KM,
-        pa.z + (pb.z - pa.z) * t + (((j * 7) % 15) - 7) * 6 * KM,
+        pa.x + (pb.x - pa.x) * t + (((j * 13) % 17) - 8) * 6 * KM * SPACE,
+        pa.y + (pb.y - pa.y) * t + (((j * 5) % 9) - 4) * 4 * KM * SPACE,
+        pa.z + (pb.z - pa.z) * t + (((j * 7) % 15) - 7) * 6 * KM * SPACE,
         (0.8 + (k % 4) * 0.25) * KM,
         j
       );
@@ -131,9 +135,9 @@ for (let a = 0; a < planets.length; a++) {
 }
 for (let i = 0; i < 40; i++) {
   addRock(
-    (((i * 37) % 61) - 30) * 14 * KM,
-    (((i * 11) % 13) - 6) * 8 * KM,
-    (((i * 19) % 59) - 29) * 14 * KM,
+    (((i * 37) % 61) - 30) * 14 * KM * SPACE,
+    (((i * 11) % 13) - 6) * 8 * KM * SPACE,
+    (((i * 19) % 59) - 29) * 14 * KM * SPACE,
     (0.9 + (i % 6) * 0.2) * KM,
     i + 200
   );
@@ -148,7 +152,7 @@ const bigRocks = [
   [130, -50, -90, 8.0],
   [-90, 22, -200, 4.4],
 ];
-bigRocks.forEach((r, i) => addRock(r[0] * KM, r[1] * KM, r[2] * KM, r[3] * KM, i + 80));
+bigRocks.forEach((r, i) => addRock(r[0] * KM * SPACE, r[1] * KM * SPACE, r[2] * KM * SPACE, r[3] * KM, i + 80));
 
 const bodies = planets.concat(moons, rocks);
 const radarBodies = planets.concat(moons);
@@ -166,6 +170,10 @@ const camQ = new THREE.Quaternion();
 const camFwd = new THREE.Vector3();
 const camUpDir = new THREE.Vector3();
 const CAM_FOLLOW = 5;
+// Worlds stay KM. Hull is drawn small. Cam stays on world metres so bodies dwarf it.
+const SHIP = 0.28 * KM;
+const WELL_PEEK = 4 * KM;
+const WELL_OUT = 1.2 * KM;
 // Hull pose is not the flight frame. Camera and the nose tick stay on orient.
 const leanQ = new THREE.Quaternion();
 const rollQ = new THREE.Quaternion();
@@ -200,6 +208,20 @@ function remainingFlip(phase, braking) {
   if (Math.abs(remainingFlip(Math.PI, false) - Math.PI) > e) throw new Error("flip continue");
 }
 
+const flight = { t: 0, dist: 0, vmax: 0, boosts: 0, warns: 0, inWarn: false, x: 0, y: 0, z: 0 };
+
+function clearFlight() {
+  flight.t = 0;
+  flight.dist = 0;
+  flight.vmax = 0;
+  flight.boosts = 0;
+  flight.warns = 0;
+  flight.inWarn = false;
+  flight.x = ship.x;
+  flight.y = ship.y;
+  flight.z = ship.z;
+}
+
 function reset() {
   ship.x = SPAWN.x;
   ship.y = SPAWN.y;
@@ -215,6 +237,7 @@ function reset() {
   flipAng = 0;
   leanDepth = 0;
   pull.set(0, 0, 0);
+  clearFlight();
 }
 
 reset();
@@ -225,6 +248,7 @@ let paused = false;
 const mouse = { x: 0, y: 0 };
 const menu = document.querySelector("#menu");
 const crashEl = document.querySelector("#crash");
+const crashStatsEl = document.querySelector("#crash-stats");
 const splashEl = document.querySelector("#splash");
 const padsEl = document.querySelector("#pads");
 const padEngines = document.querySelector("#pad-engines");
@@ -402,11 +426,23 @@ function menuButtons() {
   return [...document.querySelector("#menu-" + menuPage).querySelectorAll("button")];
 }
 
+function uiButtons() {
+  if (paused) return menuButtons();
+  if (crashMode === "overlay") return [...crashEl.querySelectorAll("button")];
+  return [];
+}
+
 function focusMenu() {
-  const btns = menuButtons();
+  const btns = uiButtons();
   if (!btns.length) return;
   menuIx = (menuIx + btns.length) % btns.length;
   for (let i = 0; i < btns.length; i++) btns[i].classList.toggle("on", i === menuIx);
+}
+
+function showCrashUi() {
+  crashEl.hidden = false;
+  menuIx = 0;
+  focusMenu();
 }
 
 function runMenu(act) {
@@ -503,15 +539,19 @@ function pollUi() {
       setMenu(false);
       return;
     }
-  } else if (crashMode !== "play") {
-    if (startHit) setMenu(true);
-    else if (aHit) restartPlay();
+  } else if (crashMode === "burst") {
     return;
+  } else if (crashMode === "overlay") {
+    if (startHit) {
+      setMenu(true);
+      return;
+    }
   } else if (startHit) {
     setMenu(true);
     return;
+  } else {
+    return;
   }
-  if (!paused) return;
   if (upHit) {
     menuIx -= 1;
     focusMenu();
@@ -521,10 +561,14 @@ function pollUi() {
     focusMenu();
   }
   if (aHit) {
-    const act = menuButtons()[menuIx]?.dataset.act;
-    if (act) runMenu(act);
+    const act = uiButtons()[menuIx]?.dataset.act;
+    if (act) {
+      if (paused) runMenu(act);
+      else if (act === "restart") restartPlay();
+      else if (act === "menu") setMenu(true);
+    }
   }
-  if (bHit) {
+  if (bHit && paused) {
     if (menuPage !== "home") showMenuPage("home");
     else setMenu(false);
   }
@@ -543,7 +587,7 @@ function setMenu(open) {
     ghostLine.visible = false;
     if (crashMode !== "play") crashEl.hidden = true;
   } else if (crashMode === "overlay") {
-    crashEl.hidden = false;
+    showCrashUi();
   }
   clearPadHold();
   syncPads();
@@ -675,7 +719,7 @@ if (inputPrefs.gyro && !needsGyroGrant()) startGyroListen();
 syncPads();
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1 * KM, 5000 * KM);
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1 * KM, 12000 * KM);
 scene.add(new THREE.AmbientLight(0xc4d2e4, 0.42));
 scene.add(new THREE.HemisphereLight(0x9ec0ea, 0x1a1218, 0.4));
 // Sky sun lives on the dome. Light only; no body in the system.
@@ -686,7 +730,7 @@ scene.add(sunDir);
 const fill = new THREE.PointLight(0xd8e8ff, 3.2, 20 * KM);
 scene.add(fill);
 
-const SKY_R = 2800 * KM;
+const SKY_R = 8000 * KM;
 
 function skyMap() {
   const w = 2048;
@@ -1066,10 +1110,10 @@ const noseNeedle = new THREE.Line(
   new THREE.LineBasicMaterial({ color: 0xf4f7fb })
 );
 craft.add(plume);
-craft.scale.setScalar(KM);
+craft.scale.setScalar(SHIP);
 scene.add(craft);
 // Heading tick stays on the flight frame when the hull flips or leans.
-noseNeedle.scale.setScalar(KM);
+noseNeedle.scale.setScalar(SHIP);
 scene.add(noseNeedle);
 
 const ghostPos = new Float32Array(GHOST_N * 3);
@@ -1090,7 +1134,7 @@ ghostLine.visible = false;
 scene.add(ghostLine);
 
 const TRAIL_N = 80;
-const TRAIL_STEP = 0.8 * KM;
+const TRAIL_STEP = 0.8 * SHIP;
 const trailPos = new Float32Array(TRAIL_N * 3);
 const trailCol = new Float32Array(TRAIL_N * 3);
 for (let i = 0; i < TRAIL_N; i++) {
@@ -1168,7 +1212,48 @@ function clearDebris() {
   fireball.visible = false;
 }
 
+function fmtTime(s) {
+  if (s < 60) return s.toFixed(1) + " s";
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return m + ":" + String(sec).padStart(2, "0");
+}
+
+function noteFlight(dt, hit, nearest, nearestD) {
+  const speed = Math.hypot(ship.vx, ship.vy, ship.vz);
+  flight.t += dt;
+  flight.dist += Math.hypot(ship.x - flight.x, ship.y - flight.y, ship.z - flight.z);
+  flight.x = ship.x;
+  flight.y = ship.y;
+  flight.z = ship.z;
+  if (speed > flight.vmax) flight.vmax = speed;
+  if (hit.event === "boost") flight.boosts += 1;
+  const warn = nearestD < nearest.sweetIn;
+  if (warn && !flight.inWarn) flight.warns += 1;
+  flight.inWarn = warn;
+}
+
+function paintCrashStats() {
+  crashStatsEl.innerHTML =
+    "<li>Flight time <span>" +
+    fmtTime(flight.t) +
+    "</span></li>" +
+    "<li>Top speed <span>" +
+    fmtSpeed(flight.vmax) +
+    "</span></li>" +
+    "<li>Gravity boosts <span>" +
+    flight.boosts +
+    "</span></li>" +
+    "<li>Near warnings <span>" +
+    flight.warns +
+    "</span></li>" +
+    "<li>Distance <span>" +
+    fmtDist(flight.dist) +
+    "</span></li>";
+}
+
 function beginCrash(bodyId) {
+  paintCrashStats();
   crashMode = "burst";
   crashT = 0;
   craft.visible = false;
@@ -1221,7 +1306,7 @@ function beginCrash(bodyId) {
   for (let i = 0; i < 8; i++) {
     const mesh = new THREE.Mesh(debrisGeo, hullMat);
     mesh.position.set(wx, wy, wz);
-    mesh.scale.setScalar(KM * (0.7 + Math.random() * 0.6));
+    mesh.scale.setScalar(SHIP * (0.7 + Math.random() * 0.6));
     mesh.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
     let rx = Math.random() - 0.5;
     let ry = Math.random() - 0.5;
@@ -1422,18 +1507,32 @@ function chaseCam(danger, dt) {
   camQ.slerp(orient, 1 - Math.exp(-CAM_FOLLOW * dt));
   camFwd.set(0, 0, 1).applyQuaternion(camQ);
   camUpDir.set(0, 1, 0).applyQuaternion(camQ);
-  const camBack = 14 * KM;
-  const camUp = 4.2 * KM;
-  const look = 10 * KM;
-  const shake = danger * 0.55 * KM;
+  const camBack = 4.2 * KM;
+  const camUp = 1.4 * KM;
+  const look = 3.2 * KM;
+  const shake = danger * 0.22 * KM;
   camShake.set((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+  let px = 0;
+  let py = 0;
+  let pz = 0;
+  const plen = Math.hypot(pull.x, pull.y, pull.z);
+  if (leanDepth > 0.02 && plen > 1e-8) {
+    const k = leanDepth / plen;
+    px = pull.x * k;
+    py = pull.y * k;
+    pz = pull.z * k;
+  }
   camera.position.set(
-    ship.x - camFwd.x * camBack + camUpDir.x * camUp + camShake.x,
-    ship.y - camFwd.y * camBack + camUpDir.y * camUp + camShake.y,
-    ship.z - camFwd.z * camBack + camUpDir.z * camUp + camShake.z
+    ship.x - camFwd.x * camBack + camUpDir.x * camUp - px * WELL_OUT + camShake.x,
+    ship.y - camFwd.y * camBack + camUpDir.y * camUp - py * WELL_OUT + camShake.y,
+    ship.z - camFwd.z * camBack + camUpDir.z * camUp - pz * WELL_OUT + camShake.z
   );
   camera.up.copy(camUpDir);
-  camera.lookAt(ship.x + camFwd.x * look, ship.y + camFwd.y * look, ship.z + camFwd.z * look);
+  camera.lookAt(
+    ship.x + camFwd.x * look + px * WELL_PEEK,
+    ship.y + camFwd.y * look + py * WELL_PEEK,
+    ship.z + camFwd.z * look + pz * WELL_PEEK
+  );
 }
 
 function frame(now) {
@@ -1450,10 +1549,10 @@ function frame(now) {
     plume.visible = false;
     sampleTrail();
     splashAng += dt * 0.18;
-    const dist = 18 * KM;
+    const dist = 5 * KM;
     camera.position.set(
       ship.x + Math.cos(splashAng) * dist,
-      ship.y + 5.5 * KM,
+      ship.y + 1.6 * KM,
       ship.z + Math.sin(splashAng) * dist
     );
     camera.up.set(0, 1, 0);
@@ -1483,7 +1582,7 @@ function frame(now) {
     if (crashMode === "burst") {
       if (crashT >= CRASH_BURST) {
         crashMode = "overlay";
-        crashEl.hidden = false;
+        showCrashUi();
         syncPads();
       }
     }
@@ -1568,6 +1667,8 @@ function frame(now) {
   engineArcade(ship, leanedNose.x, leanedNose.y, leanedNose.z, dt, thrust || boost, brake, boost);
 
   const hit = step(ship, bodies, pass, dt);
+  const nearHit = nearestBody();
+  noteFlight(dt, hit, nearHit.nearest, nearHit.nearestD);
   if (hit.event === "crash") {
     beginCrash(hit.bodyId);
   } else if (hit.event === "boost") {
@@ -1584,7 +1685,7 @@ function frame(now) {
     return;
   }
 
-  const { nearest, nearestD } = nearestBody();
+  const { nearest, nearestD } = nearHit;
   // Pick up the well's bend so space-align does not yank velocity back onto the old nose.
   if (leanDepth > 0.02) {
     const sn = slingNose(forward.x, forward.y, forward.z, ship.vx, ship.vy, ship.vz, slingMix(leanDepth, dt));

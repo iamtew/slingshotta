@@ -28,11 +28,11 @@ Meat Bag hosts `http://localhost:8000` during development, Clanker doesn't need 
 
 World stays low-spec: pixel ratio 1, antialias off, no postprocessing. Pixi HUD may use `min(2, devicePixelRatio)`. Layout must fit 1440x900 with no page scroll. HUD sits on the bottom center: speed left of the radar, nearest body right of it. The sun and nebula live on a camera-locked sky, not as bodies in the system.
 
-World units are metres. `KM` in `src/physics.js` is the feel-preserving scale (Vela radius 6000 m, same arcade clock as the old unit system). HUD shows m/s and metres, kilometres past 1000 m.
+World units are metres. `KM` in `src/physics.js` is the feel-preserving arcade clock. Planets are large vs the racer (a Vela graze is several seconds at cruise) and far apart. HUD shows m/s and metres, kilometres past 1000 m.
 
 ## Input
 
-Arcade flight. The ship flies where the nose points. A faint line trails the flown path. The ship is the Slingshot Racer: domed heat shield nose, green pressure vessels, big bell, and a truss with 8 thruster pods. RCS jets flash on those pods while turning; a jet fires when its torque agrees with the spin. The chase camera turns a bit slower than the ship, so turns show the hull side-on.
+Arcade flight. The ship flies where the nose points. A faint line trails the flown path. The ship is the Slingshot Racer: domed heat shield nose, green pressure vessels, big bell, and a truss with 8 thruster pods. RCS jets flash on those pods while turning; a jet fires when its torque agrees with the spin. The chase camera turns a bit slower than the ship, so turns show the hull side-on. In a well it peeks toward the body so the slingshot stays in view. The hull is drawn small against the KM worlds.
 
 - The white tick on the nose is heading. The dashed cyan line is a ballistic read of current velocity.
 - W thrust. S brake: the hull pitches so the bell burns; release continues through a full turn. Shift boost. No strafe. In a well the hull leans toward the body and the path follows. The heading picks up the bend so the exit keeps the slingshot.

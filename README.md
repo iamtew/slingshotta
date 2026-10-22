@@ -28,7 +28,7 @@ just assets
 
 ## GitHub Pages
 
-Repo root is the site. Relative URLs, so a project site works.
+Repo root is the site. Relative URLs, so a project site works. The share card is the Belter line in `index.html`, with the picture at `static/img/og.jpg` (absolute Pages URL, because crawlers drop a relative one).
 
 Settings, Pages, deploy from the branch that has `index.html` at the root.
 

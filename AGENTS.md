@@ -6,7 +6,7 @@ Movement game. Meat Bag flies a ship through a wide system and slings it off pla
 
 One visit to a planet's well, then the flags clear on the way out.
 
-- Inside the body: crash. Burst, then a "You crashed" screen. Restart from there.
+- Inside the body: crash. Burst, then a "Pilot crashed" screen. Restart from there.
 - Sweet band, and the pass is mostly sideways: one speed boost along velocity.
 - Outside the well: gravity only. Rocks have a small well and a thin band too.
 - Drawn wells are ship instrumentation (cyan/amber rings), not planet tint. They only show when the ship is close. Inside the inner band, the view shakes and the HUD warns.

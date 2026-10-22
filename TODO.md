@@ -2,11 +2,11 @@
 
 Later sessions. One item at a time. No flight code in the session that wrote this file.
 
-Base today: hand-placed system in `src/world.js` (`planets`, moons, rocks, `SPAWN`), arcade step in `src/physics.js`, Pixi HUD in `src/hud.js`, HTML crash panel ("You crashed" plus flight stats). Preferences already live in `localStorage` (`slingshotta-input`).
+Base today: hand-placed system in `src/world.js` (`planets`, moons, rocks, `SPAWN`), arcade step in `src/physics.js`, Pixi HUD in `src/hud.js`, HTML crash panel ("Pilot crashed" plus flight stats). Preferences already live in `localStorage` (`slingshotta-input`).
 
 Rules stay in `physics.js`, or one new module if that file would bloat. Each non-trivial rule gets a `selfCheck`.
 
-## 1. Call the player Pilot
+## 1. Call the player Pilot (done)
 
 Copy only. Splash, pause, how-to, help, crash title, `AGENTS.md`, and `README.md` say Pilot where they currently say "you" in the flight sense. Ship name stays Slingshot Racer.
 

@@ -43,6 +43,21 @@ export function fmtSpeed(mps) {
   return mps.toFixed(0) + " m/s";
 }
 
+// Well danger, scaled G, ignition kick. HUD glitch and stage jitter read this.
+export function strain(danger, g, kick) {
+  return Math.max(danger || 0, Math.min(1, Math.max(0, g || 0)) * 0.85, kick || 0);
+}
+
+const SPIN_DZ = 0.18;
+const SPIN_CAP = 2.2;
+
+export function spinMark(v) {
+  const n = v || 0;
+  if (n < SPIN_DZ && n > -SPIN_DZ) return 0;
+  const m = n / SPIN_CAP;
+  return m > 1 ? 1 : m < -1 ? -1 : m;
+}
+
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
 }
@@ -57,6 +72,9 @@ export function selfCheck() {
   assert(Math.abs(far.y - 1) < 1e-6, "clamp to rim");
   assert(fmtDist(847) === "847 m" && fmtDist(1500) === "1.5 km", "dist units");
   assert(fmtDist(210000) === "210 km" && fmtSpeed(40) === "40 m/s", "km and speed");
+  assert(strain(0, 0, 0) === 0 && strain(0.4, 0, 0) === 0.4, "strain danger");
+  assert(strain(0, 1, 0) === 0.85 && strain(0.2, 0, 0.9) === 0.9, "strain mix");
+  assert(spinMark(0.1) === 0 && spinMark(2.2) === 1 && spinMark(-2.2) === -1, "spin deadzone");
 }
 
 if (typeof process !== "undefined" && process.argv[1]?.endsWith("hud.js")) {
@@ -117,11 +135,16 @@ function drawBracket(g, w, h, mirror) {
   g.lineTo(xInner + dir * 40, 4);
   g.stroke({ width: 1.8, color: 0x7ecbff, alpha: 0.75 });
   for (let i = 0; i < 6; i++) {
+    if (i === 2) continue;
     const x = xInner + dir * (10 + i * 16);
     g.moveTo(x, h - 4);
     g.lineTo(x, h - (i % 3 === 0 ? 12 : 8));
   }
-  g.stroke({ width: 1, color: 0x7ecbff, alpha: 0.45 });
+  g.stroke({ width: 1, color: 0x7ecbff, alpha: 0.4 });
+  const dead = xInner + dir * 42;
+  g.moveTo(dead, h - 4);
+  g.lineTo(dead, h - 6);
+  g.stroke({ width: 1, color: 0xff9a3c, alpha: 0.22 });
 }
 
 // Top semicircle, 0 at left, 1 at right. Matches paintNeedle angles.
@@ -170,6 +193,57 @@ function paintVignette(g, w, h, load) {
   }
 }
 
+function paintFeel(g, w, h, load, now, spin) {
+  g.clear();
+  for (let i = 1; i <= 6; i++) {
+    g.moveTo(0, (i / 7) * h);
+    g.lineTo(w, (i / 7) * h);
+  }
+  g.stroke({ width: 1, color: 0x7ecbff, alpha: 0.035 + load * 0.07 });
+  if (load >= 0.05) {
+    const t = now * 0.001;
+    for (let i = 0; i < 3; i++) {
+      const y = (0.08 + (Math.sin(t * (8 + i * 4) + i) * 0.5 + 0.5) * 0.84) * h;
+      const x = (Math.sin(t * 6 + i) * 0.5 + 0.5) * w * 0.5;
+      g.moveTo(x, y);
+      g.lineTo(x + w * (0.16 + load * 0.22), y);
+    }
+    g.stroke({ width: 2, color: ((now / 90) | 0) % 2 ? 0xff9a3c : 0x7ecbff, alpha: 0.14 + load * 0.32 });
+  }
+  const px = spinMark(spin?.x);
+  const py = spinMark(spin?.y);
+  const pz = spinMark(spin?.z);
+  if (!px && !py && !pz) return;
+  const cx = w * 0.5;
+  const cy = h * 0.4;
+  if (py) {
+    const s = Math.sign(py);
+    for (let i = 0; i < 3; i++) {
+      g.moveTo(cx + s * (50 + i * 22), cy - 36 + i * 24);
+      g.lineTo(cx + s * (50 + i * 22) + s * 18 * Math.abs(py), cy - 36 + i * 24);
+    }
+    g.stroke({ width: 1.1, color: 0x7ecbff, alpha: 0.16 + 0.28 * Math.abs(py) });
+  }
+  if (px) {
+    const s = Math.sign(px);
+    for (let i = 0; i < 3; i++) {
+      g.moveTo(cx - 40 + i * 28, cy + s * (24 + i * 20));
+      g.lineTo(cx - 40 + i * 28, cy + s * (24 + i * 20) + s * 16 * Math.abs(px));
+    }
+    g.stroke({ width: 1.1, color: 0x7ecbff, alpha: 0.16 + 0.28 * Math.abs(px) });
+  }
+  if (pz) {
+    const dir = Math.sign(pz);
+    for (const off of [-0.9, 0.9, 2.2]) {
+      const a0 = -pz * 0.4 + off;
+      const a1 = a0 + 0.35 * dir;
+      g.moveTo(cx + Math.cos(a0) * 70, cy + Math.sin(a0) * 70);
+      g.lineTo(cx + Math.cos(a1) * 70, cy + Math.sin(a1) * 70);
+    }
+    g.stroke({ width: 1.2, color: 0xff9a3c, alpha: 0.14 + 0.3 * Math.abs(pz) });
+  }
+}
+
 export async function createHud() {
   const { Application, Container, Graphics, Text } = await import("pixi.js");
   const canvas = document.querySelector("#hud");
@@ -200,6 +274,7 @@ export async function createHud() {
   left.addChild(leftBg, speedLabel, speedVal, driveVal, gMeter, gNeedle, gLabel);
 
   const vignette = new Graphics();
+  const feel = new Graphics();
 
   const right = new Container();
   const rightBg = new Graphics();
@@ -226,10 +301,15 @@ export async function createHud() {
   const warnGfx = new Graphics();
   const warnText = new Text({ text: "PROXIMITY", style: ALERT });
   warnText.anchor.set(0.5, 0.5);
-  warn.addChild(warnGfx, warnText);
+  const warnGhost = new Text({
+    text: "PROXIMITY",
+    style: { ...ALERT, fill: 0x7ecbff },
+  });
+  warnGhost.anchor.set(0.5, 0.5);
+  warn.addChild(warnGfx, warnGhost, warnText);
   warn.visible = false;
 
-  app.stage.addChild(vignette, warn, rail, left, right, radar, toast);
+  app.stage.addChild(vignette, feel, warn, rail, left, right, radar, toast);
 
   const GAP = 18;
   const gauge = { cx: 0, cy: 0, r: 0 };
@@ -323,6 +403,9 @@ export async function createHud() {
   radarPlate.lineTo(7, 6);
   radarPlate.closePath();
   radarPlate.fill({ color: 0x7ecbff, alpha: 0.95 });
+  radarPlate.moveTo(RADAR_R + 2, -5);
+  radarPlate.lineTo(RADAR_R + 9, -5);
+  radarPlate.stroke({ width: 1, color: 0x7ecbff, alpha: 0.32 });
 
   layout();
   addEventListener("resize", layout);
@@ -338,12 +421,28 @@ export async function createHud() {
       if (splash) {
         warn.visible = false;
         vignette.clear();
+        feel.clear();
+        app.stage.position.set(0, 0);
         return;
       }
       const g = Math.max(0, Math.min(1, state.g || 0));
-      paintVignette(vignette, app.screen.width, app.screen.height, g);
+      const danger = state.danger || 0;
+      const load = strain(danger, g, state.kick);
+      const sw = app.screen.width;
+      const sh = app.screen.height;
+      paintVignette(vignette, sw, sh, g);
+      paintFeel(feel, sw, sh, load, state.now, state.spin);
+      app.stage.position.set(load > 0.04 ? (Math.random() - 0.5) * load * 5 : 0, load > 0.04 ? (Math.random() - 0.5) * load * 4 : 0);
       paintNeedle(gNeedle, gauge.cx, gauge.cy, gauge.r, g);
-      speedVal.text = fmtSpeed(state.speed);
+      let speed = fmtSpeed(state.speed);
+      if (load > 0.28) {
+        const slot = (state.now / 80) | 0;
+        if ((slot * 13) % 7 <= load * 6) {
+          const i = slot % Math.max(1, speed.length - 2);
+          speed = speed.slice(0, i) + "/" + speed.slice(i + 1);
+        }
+      }
+      speedVal.text = speed;
       let drive = "COAST";
       let driveFill = 0x8aa0b8;
       if (state.boost) {
@@ -371,29 +470,32 @@ export async function createHud() {
       toast.text = state.toast || "";
       toast.visible = Boolean(state.toast);
 
-      const danger = state.danger || 0;
       warn.visible = danger > 0;
       if (danger > 0) {
-        const w = app.screen.width;
-        const h = app.screen.height;
         const pulse = 0.35 + 0.45 * Math.abs(Math.sin(state.now / 90));
         const alpha = Math.min(1, danger) * pulse;
         warnGfx.clear();
         warnGfx.moveTo(18, 22);
         warnGfx.lineTo(52, 22);
         warnGfx.lineTo(18, 56);
-        warnGfx.moveTo(w - 18, 22);
-        warnGfx.lineTo(w - 52, 22);
-        warnGfx.lineTo(w - 18, 56);
-        warnGfx.moveTo(18, h - 22);
-        warnGfx.lineTo(52, h - 22);
-        warnGfx.lineTo(18, h - 56);
-        warnGfx.moveTo(w - 18, h - 22);
-        warnGfx.lineTo(w - 52, h - 22);
-        warnGfx.lineTo(w - 18, h - 56);
+        warnGfx.moveTo(sw - 18, 22);
+        warnGfx.lineTo(sw - 52, 22);
+        warnGfx.lineTo(sw - 18, 56);
+        warnGfx.moveTo(18, sh - 22);
+        warnGfx.lineTo(52, sh - 22);
+        warnGfx.lineTo(18, sh - 56);
+        warnGfx.moveTo(sw - 18, sh - 22);
+        warnGfx.lineTo(sw - 52, sh - 22);
+        warnGfx.lineTo(sw - 18, sh - 56);
         warnGfx.stroke({ width: 2, color: 0xff6a4a, alpha: 0.4 + alpha * 0.6 });
         warnText.text = danger > 0.65 ? "IMPACT" : "PROXIMITY";
         warnText.alpha = 0.55 + alpha * 0.45;
+        warnGhost.text = warnText.text;
+        warnGhost.position.set(warnText.x + 2, warnText.y);
+        warnGhost.visible = load > 0.2;
+        warnGhost.alpha = load * 0.4;
+      } else {
+        warnGhost.visible = false;
       }
 
       radarBlips.clear();

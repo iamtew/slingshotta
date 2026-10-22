@@ -24,6 +24,8 @@ Repo root is the site. Relative URLs, so a project site works.
 
 Settings, Pages, deploy from the branch that has `index.html` at the root.
 
+Backlog for later sessions: [TODO.md](TODO.md).
+
 ## License
 
 GNU Affero General Public License v3.0. See [LICENSE](LICENSE).

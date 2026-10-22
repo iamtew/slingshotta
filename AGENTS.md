@@ -36,10 +36,10 @@ Arcade flight. The ship flies where the nose points. A faint line trails the flo
 
 - The heat-shield nose is heading. The dashed cyan line is a ballistic read of current velocity. Burns leave a bright trail from the bell; RCS jets leave dimmer streaks.
 - W thrust. S brake: the hull pitches so the bell burns; release continues through a full turn. Shift boost. No strafe. In a well the hull leans toward the body and the path follows. The heading picks up the bend so the exit keeps the slingshot.
-- Gamepad: either stick aims, triggers thrust and brake, B boosts, bumpers roll. Start opens the menu. D-pad or left stick moves, A selects, B backs. Right stick looks around Molniya on the Ship page.
+- Gamepad: either stick aims, triggers thrust and brake, B boosts, bumpers roll. Start opens the menu. D-pad or left stick moves, A selects, B backs. Right stick looks around Setara on the Ship page.
 - Touch overlays (auto on coarse pointers): thrust, brake, boost, roll, look disc, and a Menu button. Portrait and landscape both work. Settings can force overlays on or off.
 - Gyro (off until granted in Settings): tilt aims pitch and yaw. Engines stay on the overlays.
-- Enter, Esc, Start, or the Menu overlay pauses (Ship, resume, restart, how to play, controls, settings, help). Arrows move the menu, Enter selects, Esc backs out. Controls lists bindings. Settings holds invert, overlays, and gyro. Ship is Molniya: a preview, part specs, and three paints (vessels, pods, truss).
+- Enter, Esc, Start, or the Menu overlay pauses (Ship, resume, restart, how to play, controls, settings, help). Arrows move the menu, Enter selects, Esc backs out. Controls lists bindings. Settings holds invert, overlays, and gyro. Ship is Setara: a preview, part specs, and three paints (vessels, pods, truss).
 - Splash first: ship coasts, camera orbits it, any button continues. Menu Exit returns to splash. HUD drive reads RCS pitch/yaw/roll while jets fire.
 
 Keep a file under ~500 lines. Split at a named concern before it grows past that.

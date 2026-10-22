@@ -1,4 +1,4 @@
-// Molniya in the pause menu. Preview canvas, bureau palettes, saved paint.
+// Setara in the pause menu. Preview canvas, named paints, saved mix.
 import * as THREE from "three";
 import { createRacer, paintLivery } from "./ship.js";
 

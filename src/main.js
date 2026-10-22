@@ -649,11 +649,15 @@ syncPads();
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1 * KM, 5000 * KM);
-scene.add(new THREE.AmbientLight(0x9a6ab8, 0.22));
+scene.add(new THREE.AmbientLight(0xc4d2e4, 0.42));
+scene.add(new THREE.HemisphereLight(0x9ec0ea, 0x1a1218, 0.4));
 // Sky sun lives on the dome. Light only; no body in the system.
-const sunDir = new THREE.DirectionalLight(0xffd4a8, 1.2);
+const sunDir = new THREE.DirectionalLight(0xffd4a8, 1.15);
 sunDir.position.set(0.45, 0.55, 0.7);
 scene.add(sunDir);
+// Arcade fill: lights the side the camera sees, dies before it washes the planets.
+const fill = new THREE.PointLight(0xd8e8ff, 3.2, 20 * KM);
+scene.add(fill);
 
 const SKY_R = 2800 * KM;
 
@@ -751,6 +755,7 @@ sky.add(
 
 function hitchSky() {
   sky.position.copy(camera.position);
+  fill.position.copy(camera.position);
 }
 
 function planetMap(hex) {
@@ -902,14 +907,14 @@ for (let kind = 0; kind < 3; kind++) {
 // Slingshot Racer. Domed heat shield nose, two green pressure vessels, service section, big bell,
 // and a truss holding 8 thruster pods (the RCS). Local +Z is the nose.
 const craft = new THREE.Group();
-const hullMat = new THREE.MeshLambertMaterial({ color: 0x4a6b45 });
-const darkMat = new THREE.MeshLambertMaterial({ color: 0x2a2e33 });
-const whiteMat = new THREE.MeshLambertMaterial({ color: 0xe6e1d3 });
-const copperMat = new THREE.MeshLambertMaterial({ color: 0xa8643a });
-const dishMat = new THREE.MeshLambertMaterial({ color: 0xb8b4aa, side: THREE.DoubleSide });
-const metalMat = new THREE.MeshLambertMaterial({ color: 0x55575c, side: THREE.DoubleSide });
-const strutMat = new THREE.MeshLambertMaterial({ color: 0x48577a });
-const podMat = new THREE.MeshLambertMaterial({ color: 0xc8b07a });
+const hullMat = new THREE.MeshLambertMaterial({ color: 0x4a6b45, emissive: 0x162414, emissiveIntensity: 0.35 });
+const darkMat = new THREE.MeshLambertMaterial({ color: 0x2a2e33, emissive: 0x0a0c10, emissiveIntensity: 0.2 });
+const whiteMat = new THREE.MeshLambertMaterial({ color: 0xe6e1d3, emissive: 0x2a2824, emissiveIntensity: 0.22 });
+const copperMat = new THREE.MeshLambertMaterial({ color: 0xa8643a, emissive: 0x2a1208, emissiveIntensity: 0.2 });
+const dishMat = new THREE.MeshLambertMaterial({ color: 0xb8b4aa, emissive: 0x222018, emissiveIntensity: 0.22, side: THREE.DoubleSide });
+const metalMat = new THREE.MeshLambertMaterial({ color: 0x55575c, emissive: 0x12141a, emissiveIntensity: 0.25, side: THREE.DoubleSide });
+const strutMat = new THREE.MeshLambertMaterial({ color: 0x48577a, emissive: 0x10141c, emissiveIntensity: 0.25 });
+const podMat = new THREE.MeshLambertMaterial({ color: 0xc8b07a, emissive: 0x2a2010, emissiveIntensity: 0.2 });
 
 // Cylinders and cones grow along +Y; this lays one along Z at z.
 function alongZ(mesh, z) {
@@ -949,15 +954,32 @@ function strut(a, b) {
 
 // Cold gas. Exhaust leaves the pod; thrust pushes the other way.
 // Wide end is +Y. Small end sits on the pod, gas flares out.
-const rcsGeo = new THREE.CylinderGeometry(0.12, 0.03, 0.5, 6);
-const rcsMat = new THREE.MeshBasicMaterial({ color: 0xd8f2ff, transparent: true, opacity: 0.85 });
+const rcsGeo = new THREE.SphereGeometry(0.09, 8, 6);
+const rcsMat = new THREE.MeshBasicMaterial({
+  color: 0x7eb4d8,
+  transparent: true,
+  opacity: 0.22,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+});
+const rcsHaloMat = new THREE.MeshBasicMaterial({
+  color: 0x4a88b8,
+  transparent: true,
+  opacity: 0.09,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+});
 const rcsJets = [];
 const rcsThrust = new THREE.Vector3();
 function rcsJet(pod, dx, dy) {
   const jet = new THREE.Mesh(rcsGeo, rcsMat);
   const out = new THREE.Vector3(dx, dy, 0);
-  jet.position.copy(pod).addScaledVector(out, 0.36);
+  jet.position.copy(pod).addScaledVector(out, 0.4);
   jet.quaternion.setFromUnitVectors(yAxis, out);
+  jet.scale.set(1.05, 1.9, 1.05);
+  const halo = new THREE.Mesh(rcsGeo, rcsHaloMat);
+  halo.scale.set(1.65, 1.25, 1.65);
+  jet.add(halo);
   // Torque this jet puts on the ship: pod x thrust. Fires when it agrees with spin.
   rcsThrust.copy(out).negate();
   jet.userData.torque = new THREE.Vector3().crossVectors(pod, rcsThrust).normalize();
@@ -987,12 +1009,26 @@ for (const sx of [-1, 1]) {
 }
 const RCS_DZ = 0.18;
 
-const plume = new THREE.Mesh(
-  new THREE.ConeGeometry(0.36, 1.3, 12),
-  new THREE.MeshBasicMaterial({ color: 0xffb15a })
-);
+const plume = new THREE.Group();
 plume.rotation.x = -Math.PI / 2;
 plume.position.z = -2.4;
+function addPlume(r0, r1, h, color, opacity) {
+  const m = new THREE.Mesh(
+    new THREE.CylinderGeometry(r0, r1, h, 16, 1, true),
+    new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    })
+  );
+  plume.add(m);
+}
+addPlume(0.03, 0.08, 1.9, 0xeef8ff, 0.85);
+addPlume(0.1, 0.22, 1.7, 0x6ad0ff, 0.4);
+addPlume(0.2, 0.42, 1.45, 0x2a6cff, 0.18);
 const noseRingPts = [];
 for (let i = 0; i <= 20; i++) {
   const a = (i / 20) * Math.PI * 2;

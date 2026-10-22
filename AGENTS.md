@@ -34,7 +34,7 @@ World units are metres. `KM` in `src/physics.js` is the feel-preserving arcade c
 
 Arcade flight. The ship flies where the nose points. A faint line trails the flown path. The ship is the Slingshot Racer: domed heat shield nose, green pressure vessels, big bell, and a truss with 8 thruster pods. RCS jets flash on those pods while turning; a jet fires when its torque agrees with the spin. The chase camera turns a bit slower than the ship, so turns show the hull side-on. In a well it peeks toward the body so the slingshot stays in view. The hull is drawn small against the KM worlds.
 
-- The white tick on the nose is heading. The dashed cyan line is a ballistic read of current velocity.
+- The heat-shield nose is heading. The dashed cyan line is a ballistic read of current velocity. Burns leave a bright trail from the bell; RCS jets leave dimmer streaks.
 - W thrust. S brake: the hull pitches so the bell burns; release continues through a full turn. Shift boost. No strafe. In a well the hull leans toward the body and the path follows. The heading picks up the bend so the exit keeps the slingshot.
 - Gamepad: either stick aims, triggers thrust and brake, B boosts, bumpers roll. Start opens the menu. D-pad or stick moves, A selects, B backs.
 - Touch overlays (auto on coarse pointers): thrust, brake, boost, roll, look disc, and a Menu button. Portrait and landscape both work. Settings can force overlays on or off.
@@ -53,9 +53,9 @@ Keep a file under ~500 lines. Split at a named concern before it grows past that
 - `src/hud.js` — Pixi overlay, radar projection, HUD `selfCheck`.
 - `src/tilt.js` — device tilt to screen yaw/pitch, and `selfCheck`.
 - `src/world.js` — SPAWN and the hand-placed Vela system (planets, moons, rocks).
-- `src/ship.js` — Slingshot Racer mesh, RCS jets, plume, heading tick.
+- `src/ship.js` — Slingshot Racer mesh, RCS jets, plume.
 - `src/sky.js` — camera-locked nebula/sun, stars, planet canvases.
-- `src/fx.js` — flown-path trail, ballistic ghost line, crash burst.
+- `src/fx.js` — flown-path trail from the bell, RCS streaks, ballistic ghost line, crash burst.
 - `src/input.js` — prefs, keys, mouse, pads, gyro. Does not import UI.
 - `src/ui.js` — splash, pause pages, crash overlay.
 - `src/main.js` — renderer, wells, camera, flight loop.

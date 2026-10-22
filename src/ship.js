@@ -50,7 +50,6 @@ export function createRacer(scene, shipScale) {
   }
 
   // Cold gas. Exhaust leaves the pod; thrust pushes the other way.
-  // Wide end is +Y. Small end sits on the pod, gas flares out.
   const rcsGeo = new THREE.SphereGeometry(0.09, 8, 6);
   const rcsMat = new THREE.MeshBasicMaterial({
     color: 0x7eb4d8,
@@ -86,23 +85,23 @@ export function createRacer(scene, shipScale) {
   }
 
   const podGeo = new THREE.BoxGeometry(0.22, 0.22, 0.26);
-  for (const sx of [-1, 1]) {
-    for (const sy of [-1, 1]) {
-      const front = new THREE.Vector3(sx * 0.8, sy * 0.8, 0.95);
-      const rear = new THREE.Vector3(sx * 0.8, sy * 0.8, -1.15);
-      for (const p of [front, rear]) {
-        const pod = new THREE.Mesh(podGeo, podMat);
-        pod.position.copy(p);
-        craft.add(pod);
-        rcsJet(p, sx, 0);
-        rcsJet(p, 0, sy);
-      }
-      strut(front, new THREE.Vector3(sx * 0.3, sy * 0.3, 0.95));
-      strut(front, new THREE.Vector3(sx * 0.3, sy * 0.3, 0.3));
-      strut(rear, new THREE.Vector3(sx * 0.25, sy * 0.25, -0.9));
-      strut(rear, new THREE.Vector3(sx * 0.3, sy * 0.3, -0.4));
-      strut(front, rear);
-    }
+  const POD_R = 1.5;
+  const HULL_R = 0.32;
+  function placePod(angle, z) {
+    const p = new THREE.Vector3(Math.cos(angle) * POD_R, Math.sin(angle) * POD_R, z);
+    const pod = new THREE.Mesh(podGeo, podMat);
+    pod.position.copy(p);
+    craft.add(pod);
+    rcsJet(p, Math.cos(angle - Math.PI / 4), Math.sin(angle - Math.PI / 4));
+    rcsJet(p, Math.cos(angle + Math.PI / 4), Math.sin(angle + Math.PI / 4));
+    const inner = new THREE.Vector3(Math.cos(angle) * HULL_R, Math.sin(angle) * HULL_R, z);
+    const body = new THREE.Vector3(Math.cos(angle) * HULL_R, Math.sin(angle) * HULL_R, z * 0.35);
+    strut(p, inner);
+    strut(p, body);
+  }
+  for (let i = 0; i < 4; i++) {
+    placePod(Math.PI / 4 + (i * Math.PI) / 2, 0.95);
+    placePod((i * Math.PI) / 2, -1.15);
   }
   const RCS_DZ = 0.18;
 
@@ -126,21 +125,11 @@ export function createRacer(scene, shipScale) {
   addPlume(0.03, 0.08, 1.9, 0xeef8ff, 0.85);
   addPlume(0.1, 0.22, 1.7, 0x6ad0ff, 0.4);
   addPlume(0.2, 0.42, 1.45, 0x2a6cff, 0.18);
-  const noseRingPts = [];
-  for (let i = 0; i <= 20; i++) {
-    const a = (i / 20) * Math.PI * 2;
-    noseRingPts.push(new THREE.Vector3(Math.cos(a) * 0.28, Math.sin(a) * 0.28, 3.15));
-  }
-  const noseNeedle = new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints(noseRingPts),
-    new THREE.LineBasicMaterial({ color: 0xf4f7fb })
-  );
-  craft.add(plume);
+  const bell = new THREE.Object3D();
+  bell.position.z = -2.4;
+  craft.add(plume, bell);
   craft.scale.setScalar(shipScale);
   scene.add(craft);
-  // Heading tick stays on the flight frame when the hull flips or leans.
-  noseNeedle.scale.setScalar(shipScale);
-  scene.add(noseNeedle);
 
-  return { craft, plume, rcsJets, noseNeedle, RCS_DZ, hullMat };
+  return { craft, plume, bell, rcsJets, RCS_DZ, hullMat };
 }

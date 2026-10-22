@@ -67,7 +67,7 @@ const CAM_FOLLOW = 5;
 const SHIP = 0.28 * KM;
 const WELL_PEEK = 4 * KM;
 const WELL_OUT = 1.2 * KM;
-// Hull pose is not the flight frame. Camera and the nose tick stay on orient.
+// Hull pose is not the flight frame. Camera stays on orient.
 const leanQ = new THREE.Quaternion();
 const rollQ = new THREE.Quaternion();
 const flipQ = new THREE.Quaternion();
@@ -314,7 +314,7 @@ for (let kind = 0; kind < 3; kind++) {
   scene.add(mesh);
 }
 
-const { craft, plume, rcsJets, noseNeedle, RCS_DZ, hullMat } = createRacer(scene, SHIP);
+const { craft, plume, bell, rcsJets, RCS_DZ, hullMat } = createRacer(scene, SHIP);
 const { ghostPos, ghostGeo, ghostLine, clearTrail, sampleTrail, clearDebris, spawnBurst, stepDebris } = createFx({
   scene,
   ship,
@@ -322,6 +322,9 @@ const { ghostPos, ghostGeo, ghostLine, clearTrail, sampleTrail, clearDebris, spa
   shipScale: SHIP,
   hullMat,
   ghostN: GHOST_N,
+  craft,
+  bell,
+  rcsJets,
 });
 clearTrail();
 
@@ -347,7 +350,6 @@ function beginCrash(bodyId) {
   setCrashMode("burst");
   crashT = 0;
   craft.visible = false;
-  noseNeedle.visible = false;
   ghostLine.visible = false;
   document.exitPointerLock?.();
   clearLook();
@@ -384,7 +386,6 @@ function restartPlay() {
   crashT = 0;
   crashEl.hidden = true;
   craft.visible = true;
-  noseNeedle.visible = true;
   clearDebris();
   clearTrail();
   ghostLine.visible = false;
@@ -517,11 +518,6 @@ function paintHud(now, nearest, nearestD, danger) {
 
 // Camera turns a bit slower than the ship, so turns show the hull side-on.
 // At MAX_SPIN the lag settles near MAX_SPIN / CAM_FOLLOW rad (~25 deg).
-function placeTick() {
-  noseNeedle.position.set(ship.x, ship.y, ship.z);
-  noseNeedle.quaternion.copy(orient);
-}
-
 // Leaned nose is what thrust and align follow. Flip and roll are the mesh only.
 function poseHull(dt) {
   const info = wellPull(ship, bodies);
@@ -584,9 +580,8 @@ function frame(now) {
     step(ship, bodies, pass, dt);
     craft.position.set(ship.x, ship.y, ship.z);
     craft.quaternion.copy(orient);
-    placeTick();
     plume.visible = false;
-    sampleTrail();
+    sampleTrail(false);
     const ang = spinSplash(dt);
     const dist = 5 * KM;
     camera.position.set(
@@ -741,7 +736,6 @@ function frame(now) {
   alignArcade(ship, leanedNose.x, leanedNose.y, leanedNose.z, dt, leanDepth);
 
   craft.position.set(ship.x, ship.y, ship.z);
-  placeTick();
   const bellFwd = 0.5 - 0.5 * Math.cos(flipAng);
   plume.visible = thrust || boost || bellFwd > 0.04;
   // Wider on a brake burn so the flame shows past the heat shield, which faces the camera.
@@ -749,7 +743,7 @@ function frame(now) {
   const wide = 1 + 1.6 * bellFwd;
   plume.scale.set(wide, along, wide);
   for (const jet of rcsJets) jet.visible = jet.userData.torque.dot(spin) > RCS_DZ;
-  sampleTrail();
+  sampleTrail(thrust || boost || bellFwd > 0.04);
   paintWells();
 
   const speed = Math.hypot(ship.vx, ship.vy, ship.vz);

@@ -52,8 +52,8 @@ export function syncPads() {
 }
 
 export function playHint() {
-  if (overlaysWanted()) return "Touch pads to fly. White tick is the nose. Menu is top right.";
-  return "Click to steer. White tick is the nose. Dashed cyan is where velocity goes. Enter or Esc: menu.";
+  if (overlaysWanted()) return "Touch pads to fly. Point the nose. Menu is top right.";
+  return "Click to steer. Point the nose. Dashed cyan is where velocity goes. Enter or Esc: menu.";
 }
 
 function invertLabel(axis) {

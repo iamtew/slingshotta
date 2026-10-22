@@ -1,7 +1,7 @@
 // Path ghost, flown trail, crash burst. Scene objects only; crashMode stays in the loop.
 import * as THREE from "three";
 
-export function createFx({ scene, ship, km, shipScale, hullMat, ghostN }) {
+export function createFx({ scene, ship, km, shipScale, hullMat, ghostN, craft, bell, rcsJets }) {
   const ghostPos = new Float32Array(ghostN * 3);
   const ghostGeo = new THREE.BufferGeometry();
   ghostGeo.setAttribute("position", new THREE.BufferAttribute(ghostPos, 3));
@@ -19,60 +19,109 @@ export function createFx({ scene, ship, km, shipScale, hullMat, ghostN }) {
   ghostLine.visible = false;
   scene.add(ghostLine);
 
-  const TRAIL_N = 80;
-  const TRAIL_STEP = 0.8 * shipScale;
-  const trailPos = new Float32Array(TRAIL_N * 3);
-  const trailCol = new Float32Array(TRAIL_N * 3);
-  for (let i = 0; i < TRAIL_N; i++) {
-    const t = 0.2 + 0.8 * (i / (TRAIL_N - 1));
-    trailCol[i * 3] = 0.49 * t;
-    trailCol[i * 3 + 1] = 0.8 * t;
-    trailCol[i * 3 + 2] = t;
+  const world = new THREE.Vector3();
+
+  function makeTrail(n, step, opacity) {
+    const pos = new Float32Array(n * 3);
+    const col = new Float32Array(n * 3);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    geo.setDrawRange(0, 1);
+    const line = new THREE.Line(
+      geo,
+      new THREE.LineBasicMaterial({
+        vertexColors: true,
+        transparent: true,
+        opacity,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
+    line.frustumCulled = false;
+    scene.add(line);
+    const last = new THREE.Vector3();
+    let count = 1;
+    let armed = false;
+
+    function paint(i, x, y, z, r, g, b) {
+      pos[i * 3] = x;
+      pos[i * 3 + 1] = y;
+      pos[i * 3 + 2] = z;
+      col[i * 3] = r;
+      col[i * 3 + 1] = g;
+      col[i * 3 + 2] = b;
+    }
+
+    function seed(x, y, z, r, g, b) {
+      for (let i = 0; i < n; i++) paint(i, x, y, z, r, g, b);
+      count = 1;
+      last.set(x, y, z);
+      geo.setDrawRange(0, 1);
+      geo.attributes.position.needsUpdate = true;
+      geo.attributes.color.needsUpdate = true;
+      armed = true;
+    }
+
+    function sample(x, y, z, r, g, b) {
+      if (!armed) {
+        seed(x, y, z, r, g, b);
+        return;
+      }
+      if (Math.hypot(x - last.x, y - last.y, z - last.z) < step) return;
+      last.set(x, y, z);
+      if (count < n) {
+        paint(count++, x, y, z, r, g, b);
+      } else {
+        pos.copyWithin(0, 3);
+        col.copyWithin(0, 3);
+        paint(n - 1, x, y, z, r, g, b);
+      }
+      geo.setDrawRange(0, count);
+      geo.attributes.position.needsUpdate = true;
+      geo.attributes.color.needsUpdate = true;
+    }
+
+    function restart() {
+      armed = false;
+    }
+
+    return { sample, seed, restart };
   }
-  const trailGeo = new THREE.BufferGeometry();
-  trailGeo.setAttribute("position", new THREE.BufferAttribute(trailPos, 3));
-  trailGeo.setAttribute("color", new THREE.BufferAttribute(trailCol, 3));
-  trailGeo.setDrawRange(0, 1);
-  const trailLine = new THREE.Line(
-    trailGeo,
-    new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55 })
-  );
-  trailLine.frustumCulled = false;
-  scene.add(trailLine);
-  const lastTrail = new THREE.Vector3();
-  let trailCount = 1;
+
+  const mainTrail = makeTrail(80, 0.8 * shipScale, 0.95);
+  const rcsTrails = rcsJets.map(() => makeTrail(24, 0.45 * shipScale, 0.45));
+  const rcsWas = rcsJets.map(() => false);
+
+  function atBell() {
+    craft.position.set(ship.x, ship.y, ship.z);
+    craft.updateMatrixWorld();
+    bell.getWorldPosition(world);
+    return world;
+  }
 
   function clearTrail() {
-    for (let i = 0; i < TRAIL_N; i++) {
-      trailPos[i * 3] = ship.x;
-      trailPos[i * 3 + 1] = ship.y;
-      trailPos[i * 3 + 2] = ship.z;
+    const p = atBell();
+    mainTrail.seed(p.x, p.y, p.z, 0.12, 0.22, 0.35);
+    for (let i = 0; i < rcsJets.length; i++) {
+      rcsJets[i].getWorldPosition(world);
+      rcsTrails[i].seed(world.x, world.y, world.z, 0.1, 0.18, 0.28);
+      rcsWas[i] = false;
     }
-    trailCount = 1;
-    lastTrail.set(ship.x, ship.y, ship.z);
-    trailGeo.setDrawRange(0, 1);
-    trailGeo.attributes.position.needsUpdate = true;
   }
 
-  function sampleTrail() {
-    const dx = ship.x - lastTrail.x;
-    const dy = ship.y - lastTrail.y;
-    const dz = ship.z - lastTrail.z;
-    if (Math.hypot(dx, dy, dz) < TRAIL_STEP) return;
-    lastTrail.set(ship.x, ship.y, ship.z);
-    if (trailCount < TRAIL_N) {
-      const i = trailCount++;
-      trailPos[i * 3] = ship.x;
-      trailPos[i * 3 + 1] = ship.y;
-      trailPos[i * 3 + 2] = ship.z;
-    } else {
-      trailPos.copyWithin(0, 3);
-      trailPos[(TRAIL_N - 1) * 3] = ship.x;
-      trailPos[(TRAIL_N - 1) * 3 + 1] = ship.y;
-      trailPos[(TRAIL_N - 1) * 3 + 2] = ship.z;
+  function sampleTrail(burning) {
+    const p = atBell();
+    const hot = burning ? 1 : 0.28;
+    mainTrail.sample(p.x, p.y, p.z, 0.45 * hot + 0.2, 0.8 * hot + 0.15, hot);
+    for (let i = 0; i < rcsJets.length; i++) {
+      const jet = rcsJets[i];
+      if (jet.visible && !rcsWas[i]) rcsTrails[i].restart();
+      rcsWas[i] = jet.visible;
+      if (!jet.visible) continue;
+      jet.getWorldPosition(world);
+      rcsTrails[i].sample(world.x, world.y, world.z, 0.28, 0.5, 0.75);
     }
-    trailGeo.setDrawRange(0, trailCount);
-    trailGeo.attributes.position.needsUpdate = true;
   }
 
   const debris = [];

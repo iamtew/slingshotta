@@ -174,13 +174,31 @@ const orientInv = new THREE.Quaternion();
 const leanedNose = new THREE.Vector3();
 const pull = new THREE.Vector3();
 const localPull = new THREE.Vector3();
-const shipUp = new THREE.Vector3(0, 1, 0);
+const shipRight = new THREE.Vector3(1, 0, 0);
 const shipNose = new THREE.Vector3(0, 0, 1);
 const BRAKE_FLIP = 1 / 0.12;
+const TWO_PI = Math.PI * 2;
 const LEAN_EASE = 4;
 const ROLL_MAX = 0.61;
-let brakeBlend = 0;
+let flipAng = 0;
 let leanDepth = 0;
+
+// Always spin the same way. Brake rests at π (bell forward); release continues to 2π.
+function remainingFlip(phase, braking) {
+  const p = ((phase % TWO_PI) + TWO_PI) % TWO_PI;
+  const want = braking ? Math.PI : 0;
+  const d = Math.abs(p - want);
+  if (d < 0.06 || d > TWO_PI - 0.06) return 0;
+  return (want - p + TWO_PI) % TWO_PI;
+}
+
+{
+  const e = 0.01;
+  if (remainingFlip(0, false) > e) throw new Error("flip rest");
+  if (Math.abs(remainingFlip(0, true) - Math.PI) > e) throw new Error("flip start");
+  if (remainingFlip(Math.PI, true) > e) throw new Error("flip held");
+  if (Math.abs(remainingFlip(Math.PI, false) - Math.PI) > e) throw new Error("flip continue");
+}
 
 function reset() {
   ship.x = SPAWN.x;
@@ -194,7 +212,7 @@ function reset() {
   spin.set(0, 0, 0);
   pass.boosted.clear();
   pass.prevRad.clear();
-  brakeBlend = 0;
+  flipAng = 0;
   leanDepth = 0;
   pull.set(0, 0, 0);
 }
@@ -1317,8 +1335,11 @@ function poseHull(dt) {
   localPull.copy(pull).applyQuaternion(orientInv);
   const roll = Math.max(-ROLL_MAX, Math.min(ROLL_MAX, -localPull.x * ROLL_MAX * leanDepth));
   rollQ.setFromAxisAngle(shipNose, roll);
-  brakeBlend += ((brake ? 1 : 0) - brakeBlend) * (1 - Math.exp(-BRAKE_FLIP * dt));
-  flipQ.setFromAxisAngle(shipUp, Math.PI * brakeBlend);
+  const rem = remainingFlip(flipAng, brake);
+  flipAng += rem * (1 - Math.exp(-BRAKE_FLIP * dt));
+  if (flipAng >= TWO_PI) flipAng -= TWO_PI;
+  if (remainingFlip(flipAng, brake) < 0.06) flipAng = brake ? Math.PI : 0;
+  flipQ.setFromAxisAngle(shipRight, flipAng);
   craft.quaternion.copy(leanQ).multiply(orient).multiply(rollQ).multiply(flipQ);
 }
 
@@ -1491,10 +1512,11 @@ function frame(now) {
 
   craft.position.set(ship.x, ship.y, ship.z);
   placeTick();
-  plume.visible = thrust || boost || brakeBlend > 0.04;
+  const bellFwd = 0.5 - 0.5 * Math.cos(flipAng);
+  plume.visible = thrust || boost || bellFwd > 0.04;
   // Wider on a brake burn so the flame shows past the heat shield, which faces the camera.
-  const along = 0.35 + (boost ? 1.8 : thrust ? 1.4 : 0) + 1.7 * brakeBlend;
-  const wide = 1 + 1.6 * brakeBlend;
+  const along = 0.35 + (boost ? 1.8 : thrust ? 1.4 : 0) + 1.7 * bellFwd;
+  const wide = 1 + 1.6 * bellFwd;
   plume.scale.set(wide, along, wide);
   for (const jet of rcsJets) jet.visible = jet.userData.torque.dot(spin) > RCS_DZ;
   sampleTrail();

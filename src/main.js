@@ -498,12 +498,17 @@ function pollUi() {
     if (anyHit) endSplash();
     return;
   }
-  if (crashMode !== "play") {
-    if (startHit || aHit) restartPlay();
+  if (paused) {
+    if (startHit) {
+      setMenu(false);
+      return;
+    }
+  } else if (crashMode !== "play") {
+    if (startHit) setMenu(true);
+    else if (aHit) restartPlay();
     return;
-  }
-  if (startHit) {
-    setMenu(!paused);
+  } else if (startHit) {
+    setMenu(true);
     return;
   }
   if (!paused) return;
@@ -536,6 +541,9 @@ function setMenu(open) {
     showMenuPage("home");
     document.exitPointerLock?.();
     ghostLine.visible = false;
+    if (crashMode !== "play") crashEl.hidden = true;
+  } else if (crashMode === "overlay") {
+    crashEl.hidden = false;
   }
   clearPadHold();
   syncPads();
@@ -550,8 +558,9 @@ addEventListener("keydown", (e) => {
   if (e.code === "Enter" || e.code === "Escape") {
     e.preventDefault();
     if (!e.repeat) {
-      if (crashMode !== "play") restartPlay();
-      else setMenu(!paused);
+      if (paused) setMenu(false);
+      else if (crashMode !== "play") restartPlay();
+      else setMenu(true);
     }
     return;
   }
@@ -1142,13 +1151,24 @@ const CRASH_BURST = 1;
 let crashT = 0;
 const debris = [];
 const debrisGeo = new THREE.BoxGeometry(0.22, 0.16, 0.4);
+const fireMat = new THREE.MeshBasicMaterial({
+  color: 0xff7a22,
+  transparent: true,
+  opacity: 0.95,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+});
+const fireball = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), fireMat);
+fireball.visible = false;
+scene.add(fireball);
 
 function clearDebris() {
   for (const bit of debris) scene.remove(bit.mesh);
   debris.length = 0;
+  fireball.visible = false;
 }
 
-function beginCrash() {
+function beginCrash(bodyId) {
   crashMode = "burst";
   crashT = 0;
   craft.visible = false;
@@ -1162,20 +1182,64 @@ function beginCrash() {
   clearPadHold();
   syncPads();
   clearDebris();
-  const wx = craft.position.x;
-  const wy = craft.position.y;
-  const wz = craft.position.z;
+  // Buried inside the mesh. Project onto the skin so bits don't spawn in the rock.
+  const body = bodies.find((b) => b.id === bodyId);
+  let nx = 0;
+  let ny = 1;
+  let nz = 0;
+  let wx = craft.position.x;
+  let wy = craft.position.y;
+  let wz = craft.position.z;
+  if (body) {
+    nx = ship.x - body.x;
+    ny = ship.y - body.y;
+    nz = ship.z - body.z;
+    const r = Math.hypot(nx, ny, nz) || 1;
+    nx /= r;
+    ny /= r;
+    nz /= r;
+    const skin = body.radius + 0.4 * KM;
+    wx = body.x + nx * skin;
+    wy = body.y + ny * skin;
+    wz = body.z + nz * skin;
+  }
+  const vrad = ship.vx * nx + ship.vy * ny + ship.vz * nz;
+  const tx = ship.vx - vrad * nx;
+  const ty = ship.vy - vrad * ny;
+  const tz = ship.vz - vrad * nz;
+  fireball.userData.ox = wx;
+  fireball.userData.oy = wy;
+  fireball.userData.oz = wz;
+  fireball.userData.nx = nx;
+  fireball.userData.ny = ny;
+  fireball.userData.nz = nz;
+  const fireR = 0.6 * KM;
+  fireball.position.set(wx + nx * fireR, wy + ny * fireR, wz + nz * fireR);
+  fireball.scale.setScalar(fireR);
+  fireMat.opacity = 0.95;
+  fireball.visible = true;
   for (let i = 0; i < 8; i++) {
     const mesh = new THREE.Mesh(debrisGeo, hullMat);
     mesh.position.set(wx, wy, wz);
     mesh.scale.setScalar(KM * (0.7 + Math.random() * 0.6));
     mesh.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
-    const kick = (4 + Math.random() * 6) * KM;
+    let rx = Math.random() - 0.5;
+    let ry = Math.random() - 0.5;
+    let rz = Math.random() - 0.5;
+    if (rx * nx + ry * ny + rz * nz < 0) {
+      rx = -rx;
+      ry = -ry;
+      rz = -rz;
+    }
+    // Drop most of the impact speed or the bits leave the frame in a blink.
+    const skim = 0.08;
+    const kick = (2.2 + Math.random() * 1.6) * KM;
+    const spread = (0.7 + Math.random() * 1.1) * KM;
     debris.push({
       mesh,
-      vx: ship.vx + (Math.random() - 0.5) * kick,
-      vy: ship.vy + (Math.random() - 0.5) * kick,
-      vz: ship.vz + (Math.random() - 0.5) * kick,
+      vx: tx * skim + nx * kick + rx * spread,
+      vy: ty * skim + ny * kick + ry * spread,
+      vz: tz * skim + nz * kick + rz * spread,
       sx: (Math.random() - 0.5) * 6,
       sy: (Math.random() - 0.5) * 6,
       sz: (Math.random() - 0.5) * 6,
@@ -1193,6 +1257,17 @@ function stepDebris(dt) {
     bit.mesh.rotation.y += bit.sy * dt;
     bit.mesh.rotation.z += bit.sz * dt;
   }
+  if (!fireball.visible) return;
+  const t = Math.min(1, crashT / CRASH_BURST);
+  const fireR = (0.6 + t * 3.4) * KM;
+  fireball.scale.setScalar(fireR);
+  fireball.position.set(
+    fireball.userData.ox + fireball.userData.nx * fireR,
+    fireball.userData.oy + fireball.userData.ny * fireR,
+    fireball.userData.oz + fireball.userData.nz * fireR
+  );
+  fireMat.opacity = 0.95 * (1 - t);
+  if (t >= 1) fireball.visible = false;
 }
 
 function restartPlay() {
@@ -1209,7 +1284,9 @@ function restartPlay() {
 }
 
 crashEl.addEventListener("click", (e) => {
-  if (e.target.closest("button")?.dataset.act === "restart") restartPlay();
+  const act = e.target.closest("button")?.dataset.act;
+  if (act === "restart") restartPlay();
+  else if (act === "menu") setMenu(true);
 });
 splashEl.addEventListener("click", endSplash);
 
@@ -1401,9 +1478,9 @@ function frame(now) {
   last = now;
 
   if (crashMode !== "play") {
+    if (crashMode === "burst") crashT += dt;
     stepDebris(dt);
     if (crashMode === "burst") {
-      crashT += dt;
       if (crashT >= CRASH_BURST) {
         crashMode = "overlay";
         crashEl.hidden = false;
@@ -1411,6 +1488,7 @@ function frame(now) {
       }
     }
     const near = nearestBody();
+    chaseCam(crashMode === "burst" ? Math.max(0, 1 - crashT / CRASH_BURST) : 0, dt);
     paintHud(now, near.nearest, near.nearestD, 0);
     hitchSky();
     renderer.render(scene, camera);
@@ -1491,13 +1569,14 @@ function frame(now) {
 
   const hit = step(ship, bodies, pass, dt);
   if (hit.event === "crash") {
-    beginCrash();
+    beginCrash(hit.bodyId);
   } else if (hit.event === "boost") {
     say("Boost off " + hit.bodyId + ".");
   }
 
   if (crashMode !== "play") {
     const near = nearestBody();
+    chaseCam(crashMode === "burst" ? Math.max(0, 1 - crashT / CRASH_BURST) : 0, dt);
     paintHud(now, near.nearest, near.nearestD, 0);
     hitchSky();
     renderer.render(scene, camera);

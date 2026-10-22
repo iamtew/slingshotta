@@ -1,6 +1,26 @@
-// Slingshot Racer. Domed heat shield nose, two green pressure vessels, service section, big bell,
+// Slingshot Racer. Domed heat shield nose, two pressure vessels, service section, big bell,
 // and a truss holding 8 thruster pods (the RCS). Local +Z is the nose.
+// hullMat, podMat, and strutMat are the three paints. Every racer registers so one call updates them all.
 import * as THREE from "three";
+
+const skins = [];
+const livery = { vessel: "#4a6b45", pods: "#c8b07a", truss: "#48577a" };
+
+function tint(mat, hex) {
+  mat.color.set(hex);
+  mat.emissive.copy(mat.color).multiplyScalar(0.28);
+}
+
+export function paintLivery(colors) {
+  if (colors.vessel) livery.vessel = colors.vessel;
+  if (colors.pods) livery.pods = colors.pods;
+  if (colors.truss) livery.truss = colors.truss;
+  for (const skin of skins) {
+    tint(skin.hullMat, livery.vessel);
+    tint(skin.podMat, livery.pods);
+    tint(skin.strutMat, livery.truss);
+  }
+}
 
 export function createRacer(scene, shipScale) {
   const craft = new THREE.Group();
@@ -130,6 +150,8 @@ export function createRacer(scene, shipScale) {
   craft.add(plume, bell);
   craft.scale.setScalar(shipScale);
   scene.add(craft);
+  skins.push({ hullMat, podMat, strutMat });
+  paintLivery(livery);
 
   return { craft, plume, bell, rcsJets, RCS_DZ, hullMat };
 }

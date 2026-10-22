@@ -194,12 +194,61 @@
     #menu ul { margin: 0 0 12px; padding-left: 1.2em; }
     #menu li { margin: 0 0 6px; }
     #menu .foot, #crash .foot { margin: 4px 0 0; opacity: 0.7; }
+    #menu.wide .panel { width: min(920px, calc(100vw - 32px)); }
+    #menu button.picked { border-color: #ff9a3c; }
+    #menu button.on, #menu button:focus { border-color: #7ecbff; }
+    .ship-layout {
+      display: grid;
+      grid-template-columns: minmax(220px, 0.9fr) minmax(260px, 1.1fr);
+      gap: 18px;
+      align-items: start;
+    }
+    #ship-view {
+      width: 100%;
+      height: 340px;
+      display: block;
+      background: #07080e;
+      touch-action: none;
+      cursor: grab;
+    }
+    #ship-picker { margin: 8px 0 0; }
+    #menu .ship-name {
+      margin: 0 0 2px;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    #menu .ship-tag { margin: 0 0 10px; opacity: 0.78; }
+    #menu .specs { margin: 0 0 12px; padding: 0; list-style: none; }
+    #menu .specs li { margin: 0 0 8px; }
+    #menu .hex {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 8px;
+    }
+    #menu .hex input {
+      flex: 1;
+      min-width: 0;
+      padding: 8px 10px;
+      color: inherit;
+      background: #101a26;
+      border: 1px solid #31465f;
+      font: inherit;
+    }
+    #menu .hex input:focus { border-color: #7ecbff; outline: none; }
+    @media (max-width: 800px) {
+      .ship-layout { grid-template-columns: 1fr; }
+      #ship-view { height: 240px; }
+    }
   </style>
   <script type="importmap">
   {
     "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-      "pixi.js": "https://cdn.jsdelivr.net/npm/pixi.js@8.12.0/dist/pixi.min.mjs"
+      "pixi.js": "https://cdn.jsdelivr.net/npm/pixi.js@8.12.0/dist/pixi.min.mjs",
+      "@jaames/iro": "https://cdn.jsdelivr.net/npm/@jaames/iro@5.5.2/dist/iro.es.js"
     }
   }
   </script>
@@ -227,6 +276,7 @@
     <div class="panel">
       <h1>Slingshotta</h1>
       <div id="menu-home">
+        <button type="button" data-act="ship">Ship</button>
         <button type="button" data-act="resume">Resume</button>
         <button type="button" data-act="restart">Restart</button>
         <button type="button" data-act="how">How to play</button>
@@ -255,7 +305,9 @@
           <li>Touch overlays: thrust, brake, boost, roll, look disc</li>
           <li>Gyro (if on): tilt aims pitch and yaw</li>
           <li>Enter / Esc / Start / Menu overlay: menu</li>
-          <li>D-pad or stick: menu move</li>
+          <li>Menu: arrows move, Enter selects, Esc backs out</li>
+          <li>D-pad or left stick: menu move</li>
+          <li>Right stick on Ship: look around the hull</li>
           <li>A: menu select, B: back</li>
         </ul>
         <button type="button" data-act="back">Back</button>
@@ -274,7 +326,42 @@
         <p>Doing nothing at the start misses Vela. Steer into the rings when you want the boost. Belt rocks are solid and have a thin well.</p>
         <button type="button" data-act="back">Back</button>
       </div>
-      <p class="foot">Enter, Esc, or Start to close</p>
+      <div id="menu-ship" hidden>
+        <div class="ship-layout">
+          <div>
+            <canvas id="ship-view" width="360" height="340" role="img" aria-label="Molniya"></canvas>
+            <p class="foot">Drag or the right stick to look. Left and right arrows turn it.</p>
+            <div id="ship-wheel" hidden>
+              <div id="ship-picker"></div>
+              <p id="ship-picker-fail" class="foot" hidden>Color wheel did not load. Named bureaus still work.</p>
+            </div>
+          </div>
+          <div>
+            <h2 class="ship-name">Molniya</h2>
+            <p class="ship-tag">Yuzhnoye Type 7 · hull 17. One seat, one bell.</p>
+            <ul class="specs">
+              <li><b>Heat shield.</b> Lotos silica-phenolic cap, 38 mm. One 11 km/s graze. It is meant to char.</li>
+              <li><b>Tanks.</b> Two spheres, the aft one stretched. UDMH / N2O4, helium at 220 bar. Hypergolic if they meet.</li>
+              <li><b>RCS.</b> Eight pods, sixteen nitrogen jets. A jet fires only when its torque matches the spin.</li>
+              <li><b>Main engine.</b> Khimavtomatika K-17, copper throat, 180 kN in vacuum. Cruise is a throttle cap. Boost opens it. Brake turns the hull so this bell burns.</li>
+            </ul>
+            <button type="button" data-act="palette" data-palette="lavochkin">Lavochkin Bureau</button>
+            <button type="button" data-act="palette" data-palette="baikonur">Baikonur Line</button>
+            <button type="button" data-act="palette" data-palette="krasnaya">Krasnaya Zvezda</button>
+            <button type="button" data-act="palette" data-palette="nauka">Nauka Interplanetary</button>
+            <button type="button" data-act="palette" data-palette="mir">Mir Orbital</button>
+            <button type="button" data-act="palette" data-palette="custom">Custom mix</button>
+            <div id="ship-custom" hidden>
+              <button type="button" data-act="slot" data-slot="vessel">Vessels</button>
+              <button type="button" data-act="slot" data-slot="pods">Pods</button>
+              <button type="button" data-act="slot" data-slot="truss">Truss</button>
+              <label class="hex">Hex <input id="ship-hex" maxlength="7" spellcheck="false" autocomplete="off"></label>
+            </div>
+            <button type="button" data-act="back">Back</button>
+          </div>
+        </div>
+      </div>
+      <p class="foot">Arrows move. Enter selects. Esc backs out. Start closes.</p>
     </div>
   </div>
   <div id="crash" hidden>
@@ -283,7 +370,7 @@
       <ul id="crash-stats"></ul>
       <button type="button" data-act="restart">Restart</button>
       <button type="button" data-act="menu">Menu</button>
-      <p class="foot">D-pad or stick to move. A to select. Start opens the menu.</p>
+      <p class="foot">Arrows move. Enter selects. Esc or Start opens the menu.</p>
     </div>
   </div>
   <div id="splash">

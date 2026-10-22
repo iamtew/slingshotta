@@ -15,6 +15,7 @@ import {
   toggleGyro,
 } from "./input.js";
 import { fmtDist, fmtSpeed } from "./hud.js";
+import { choosePalette, chooseSlot, hideShip, nudgeYaw, showShip } from "./shipview.js";
 
 export const menu = document.querySelector("#menu");
 export const crashEl = document.querySelector("#crash");
@@ -71,16 +72,21 @@ function paintSettings() {
 
 function showMenuPage(name) {
   menuPage = name;
-  for (const id of ["home", "how", "controls", "settings", "help"]) {
+  for (const id of ["home", "how", "controls", "settings", "help", "ship"]) {
     document.querySelector("#menu-" + id).hidden = id !== name;
   }
+  menu.classList.toggle("wide", name === "ship");
   if (name === "settings") paintSettings();
+  if (name === "ship") showShip();
+  else hideShip();
   menuIx = 0;
   focusMenu();
 }
 
 function menuButtons() {
-  return [...document.querySelector("#menu-" + menuPage).querySelectorAll("button")];
+  return [...document.querySelector("#menu-" + menuPage).querySelectorAll("button")].filter(
+    (btn) => !btn.closest("[hidden]")
+  );
 }
 
 function uiButtons() {
@@ -94,6 +100,7 @@ export function focusMenu() {
   if (!btns.length) return;
   menuIx = (menuIx + btns.length) % btns.length;
   for (let i = 0; i < btns.length; i++) btns[i].classList.toggle("on", i === menuIx);
+  btns[menuIx].focus({ preventScroll: true });
 }
 
 export function showCrashUi() {
@@ -123,6 +130,10 @@ function runMenu(act) {
     toggleGyro().then(paintSettings);
   } else if (act === "recenter") {
     recenterGyro();
+  } else if (act === "palette") {
+    choosePalette(menuButtons()[menuIx]?.dataset.palette);
+  } else if (act === "slot") {
+    chooseSlot(menuButtons()[menuIx]?.dataset.slot);
   } else if (act === "exit") enterSplash();
   else if (act === "back") showMenuPage("home");
   else showMenuPage(act);
@@ -162,6 +173,7 @@ export function setMenu(open) {
   } else if (crashMode === "overlay") {
     showCrashUi();
   }
+  if (!open) hideShip();
   clearPadHold();
   syncPads();
 }
@@ -272,16 +284,45 @@ export function bindUi() {
       if (!e.repeat) endSplash();
       return;
     }
+    const menuOpen = paused || crashMode === "overlay";
+    if (menuOpen) {
+      const typing = e.target instanceof Element && e.target.closest("input, #ship-picker");
+      if (e.code === "Escape") {
+        e.preventDefault();
+        if (e.repeat) return;
+        if (!paused) setMenu(true);
+        else if (menuPage !== "home") showMenuPage("home");
+        else setMenu(false);
+        return;
+      }
+      if (typing) return;
+      if (e.code === "ArrowUp" || e.code === "ArrowDown") {
+        e.preventDefault();
+        menuIx += e.code === "ArrowDown" ? 1 : -1;
+        focusMenu();
+        return;
+      }
+      if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
+        e.preventDefault();
+        if (paused && menuPage === "ship") nudgeYaw(e.code === "ArrowRight" ? 1 : -1);
+        return;
+      }
+      if (e.code === "Enter" || e.code === "Space") {
+        e.preventDefault();
+        if (!e.repeat) uiButtons()[menuIx]?.click();
+        return;
+      }
+      return;
+    }
     if (e.code === "Enter" || e.code === "Escape") {
       e.preventDefault();
       if (!e.repeat) {
-        if (paused) setMenu(false);
-        else if (crashMode !== "play") hooks.restartPlay();
+        if (crashMode !== "play") hooks.restartPlay();
         else setMenu(true);
       }
       return;
     }
-    if (paused || crashMode !== "play") return;
+    if (crashMode !== "play") return;
     hooks.onKey(e);
   });
   menu.addEventListener("click", (e) => {
@@ -291,6 +332,7 @@ export function bindUi() {
     const btns = menuButtons();
     const ix = btns.indexOf(btn);
     if (ix >= 0) menuIx = ix;
+    focusMenu();
     runMenu(act);
   });
   crashEl.addEventListener("click", (e) => {

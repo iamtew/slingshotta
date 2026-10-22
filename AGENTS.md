@@ -36,10 +36,10 @@ Arcade flight. The ship flies where the nose points. A faint line trails the flo
 
 - The heat-shield nose is heading. The dashed cyan line is a ballistic read of current velocity. Burns leave a bright trail from the bell; RCS jets leave dimmer streaks.
 - W thrust. S brake: the hull pitches so the bell burns; release continues through a full turn. Shift boost. No strafe. In a well the hull leans toward the body and the path follows. The heading picks up the bend so the exit keeps the slingshot.
-- Gamepad: either stick aims, triggers thrust and brake, B boosts, bumpers roll. Start opens the menu. D-pad or stick moves, A selects, B backs.
+- Gamepad: either stick aims, triggers thrust and brake, B boosts, bumpers roll. Start opens the menu. D-pad or left stick moves, A selects, B backs. Right stick looks around Molniya on the Ship page.
 - Touch overlays (auto on coarse pointers): thrust, brake, boost, roll, look disc, and a Menu button. Portrait and landscape both work. Settings can force overlays on or off.
 - Gyro (off until granted in Settings): tilt aims pitch and yaw. Engines stay on the overlays.
-- Enter, Esc, Start, or the Menu overlay pauses (resume, restart, how to play, controls, settings, help). Controls lists bindings. Settings holds invert, overlays, and gyro.
+- Enter, Esc, Start, or the Menu overlay pauses (Ship, resume, restart, how to play, controls, settings, help). Arrows move the menu, Enter selects, Esc backs out. Controls lists bindings. Settings holds invert, overlays, and gyro. Ship is Molniya: a preview, part specs, and three paints (vessels, pods, truss).
 - Splash first: ship coasts, camera orbits it, any button continues. Menu Exit returns to splash. HUD drive reads RCS pitch/yaw/roll while jets fire.
 
 Keep a file under ~500 lines. Split at a named concern before it grows past that.
@@ -53,7 +53,8 @@ Keep a file under ~500 lines. Split at a named concern before it grows past that
 - `src/hud.js` — Pixi overlay, radar projection, HUD `selfCheck`.
 - `src/tilt.js` — device tilt to screen yaw/pitch, and `selfCheck`.
 - `src/world.js` — SPAWN and the hand-placed Vela system (planets, moons, rocks).
-- `src/ship.js` — Slingshot Racer mesh, RCS jets, plume.
+- `src/ship.js` — Slingshot Racer mesh, RCS jets, plume, livery paint.
+- `src/shipview.js` — pause-menu ship preview, palettes, custom color.
 - `src/sky.js` — camera-locked nebula/sun, stars, planet canvases.
 - `src/fx.js` — flown-path trail from the bell, RCS streaks, ballistic ghost line, crash burst.
 - `src/input.js` — prefs, keys, mouse, pads, gyro. Does not import UI.

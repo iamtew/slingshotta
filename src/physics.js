@@ -16,6 +16,8 @@ const ALIGN_WELL = 0.35;
 const SLING = 2.2;
 // Extra 1/r on top of Newtonian. Surface pull is (1+CLOSE)×, far coast barely moves.
 const CLOSE = 10;
+// Arcade G: |perp Δv/dt| / FELT. A hard Vela inner-band graze sits near 1.
+export const FELT = 48 * KM;
 
 function gravityScale(gm, radius, r) {
   return (gm / (r * r * r)) * (1 + (CLOSE * radius) / r);
@@ -30,6 +32,26 @@ export function createPass() {
 
 function hypot3(x, y, z) {
   return Math.hypot(x, y, z);
+}
+
+// Sideways change in velocity, not SI gees. Along-track thrust/brake/boost drop out.
+export function feltG(vx0, vy0, vz0, vx1, vy1, vz1, dt) {
+  if (!(dt > 1e-8)) return 0;
+  const dvx = vx1 - vx0;
+  const dvy = vy1 - vy0;
+  const dvz = vz1 - vz0;
+  const sp = hypot3(vx0, vy0, vz0);
+  let perp;
+  if (sp < 1e-8) {
+    perp = hypot3(dvx, dvy, dvz);
+  } else {
+    const along = (dvx * vx0 + dvy * vy0 + dvz * vz0) / sp;
+    const px = dvx - (along * vx0) / sp;
+    const py = dvy - (along * vy0) / sp;
+    const pz = dvz - (along * vz0) / sp;
+    perp = hypot3(px, py, pz);
+  }
+  return perp / dt / FELT;
 }
 
 // One small slice. Mutates ship and pass. Crash returns before later bodies.
@@ -448,6 +470,15 @@ export function selfCheck() {
   assert(Math.abs(straight.x) < 1e-9 && Math.abs(straight.z - 1) < 1e-9, "lean depth 0");
   const tipped = leanNose(0, 0, 1, 1, 0, 0, 1);
   assert(tipped.x > 0.3 && tipped.x < 0.5 && tipped.z > 0.8, "lean tips toward pull");
+
+  const v0z = 5 * KM;
+  const push = { vx: 0, vy: 0, vz: v0z };
+  engineArcade(push, 0, 0, 1, 0.1, true, false, false);
+  assert(feltG(0, 0, v0z, push.vx, push.vy, push.vz, 0.1) < 0.05, "thrust is along-track");
+  const dtG = 0.02;
+  assert(Math.abs(feltG(0, 0, 10, FELT * dtG, 0, 10, dtG) - 1) < 1e-6, "perp FELT is 1");
+  assert(feltG(0, 0, 0, 0, 0, 0, 0) === 0, "zero dt");
+  assert(feltG(0, 0, 0, 0, 0, 0, 0.016) === 0, "still");
 }
 
 // node src/physics.js

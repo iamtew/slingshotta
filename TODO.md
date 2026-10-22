@@ -10,15 +10,13 @@ Rules stay in `physics.js`, or one new module if that file would bloat. Each non
 
 Copy only. Splash, pause, how-to, help, crash title, `AGENTS.md`, and `README.md` say Pilot where they currently say "you" in the flight sense. Ship name stays Slingshot Racer.
 
-## 2. G-force meter and strain picture
+## 2. G-force meter and strain picture (done)
 
-Felt G is the sideways change in velocity, not raw `m/s² / 9.81`. Cruise is already `12 * KM` m/s (`KM` is 500), so real gees would pin the needle on the first bend. Scale so a hard slingshot sits near the top of an airplane-style gauge and a gentle turn sits low. Sample it where `step` already changes `vx, vy, vz`. Along-track thrust counts little; the turn counts.
-
-HUD: a small gauge on the existing bottom cluster in `src/hud.js`, beside speed. High G reuses the shake that already runs inside the inner band, plus a tunnel vignette on the Pixi overlay. No new postprocessing.
+`feltG` in `src/physics.js`: sideways `|Δv| / dt / FELT`, sampled around engine/step/align. HUD G needle beside speed, high G reuses inner-band shake plus a Pixi tunnel vignette.
 
 ## 3. Juice and Pilot health
 
-Two modes, picked before flight (menu). Default Casual Pain.
+Reads `feltG` from physics. Two modes, picked before flight (menu). Default Casual Pain.
 
 - **Juice.** A cockpit shot (key plus a touch pad) that raises the G the Pilot can hold for a few seconds. Limited doses. Refill only in Casual, and only while G is calm.
 - **Casual Pain.** Strain builds above the comfort G and falls back when the Pilot eases off. Vision and control dull at the top. The Pilot does not die from strain.

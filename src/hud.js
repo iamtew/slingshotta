@@ -124,6 +124,52 @@ function drawBracket(g, w, h, mirror) {
   g.stroke({ width: 1, color: 0x7ecbff, alpha: 0.45 });
 }
 
+// Top semicircle, 0 at left, 1 at right. Matches paintNeedle angles.
+function drawGauge(g, cx, cy, r) {
+  for (let i = 0; i <= 16; i++) {
+    const ang = Math.PI * (1 - i / 16);
+    const x = cx + Math.cos(ang) * r;
+    const y = cy - Math.sin(ang) * r;
+    if (i === 0) g.moveTo(x, y);
+    else g.lineTo(x, y);
+  }
+  g.stroke({ width: 1.6, color: 0xff9a3c, alpha: 0.8 });
+  for (let i = 0; i <= 4; i++) {
+    const ang = Math.PI * (1 - i / 4);
+    const c = Math.cos(ang);
+    const s = -Math.sin(ang);
+    const inner = i % 2 === 0 ? r - 7 : r - 4;
+    g.moveTo(cx + c * inner, cy + s * inner);
+    g.lineTo(cx + c * r, cy + s * r);
+  }
+  g.stroke({ width: 1, color: 0x7ecbff, alpha: 0.55 });
+}
+
+function paintNeedle(g, cx, cy, r, load) {
+  const ang = Math.PI * (1 - load);
+  const nx = cx + Math.cos(ang) * (r - 3);
+  const ny = cy - Math.sin(ang) * (r - 3);
+  g.clear();
+  g.moveTo(cx, cy);
+  g.lineTo(nx, ny);
+  g.stroke({ width: 2, color: load > 0.7 ? 0xff6a4a : 0x7ecbff, alpha: 0.95 });
+  g.circle(cx, cy, 2.4);
+  g.fill({ color: 0xe8f0f6, alpha: 0.9 });
+}
+
+function paintVignette(g, w, h, load) {
+  g.clear();
+  if (load < 0.02) return;
+  const cx = w * 0.5;
+  const cy = h * 0.5;
+  g.rect(0, 0, w, h);
+  g.fill({ color: 0x07080e, alpha: load * 0.16 });
+  for (const t of [1, 0.84, 0.68]) {
+    g.ellipse(cx, cy, w * 0.54 * t, h * 0.54 * t);
+    g.stroke({ width: 36 + load * 48, color: 0x07080e, alpha: load * 0.42 * (1.15 - t) });
+  }
+}
+
 export async function createHud() {
   const { Application, Container, Graphics, Text } = await import("pixi.js");
   const canvas = document.querySelector("#hud");
@@ -147,7 +193,13 @@ export async function createHud() {
   speedLabel.position.set(18, 8);
   speedVal.position.set(18, 24);
   driveVal.position.set(18, 56);
-  left.addChild(leftBg, speedLabel, speedVal, driveVal);
+  const gMeter = new Graphics();
+  const gNeedle = new Graphics();
+  const gLabel = new Text({ text: "G", style: LABEL });
+  gLabel.anchor.set(0.5, 0);
+  left.addChild(leftBg, speedLabel, speedVal, driveVal, gMeter, gNeedle, gLabel);
+
+  const vignette = new Graphics();
 
   const right = new Container();
   const rightBg = new Graphics();
@@ -177,9 +229,10 @@ export async function createHud() {
   warn.addChild(warnGfx, warnText);
   warn.visible = false;
 
-  app.stage.addChild(warn, rail, left, right, radar, toast);
+  app.stage.addChild(vignette, warn, rail, left, right, radar, toast);
 
   const GAP = 18;
+  const gauge = { cx: 0, cy: 0, r: 0 };
 
   function viewSize() {
     const vv = window.visualViewport;
@@ -228,6 +281,13 @@ export async function createHud() {
     drawBracket(leftBg, panelW, panelH, false);
     rightBg.clear();
     drawBracket(rightBg, panelW, panelH, true);
+    const gr = panelH < 80 ? 16 : 24;
+    gauge.r = gr;
+    gauge.cx = panelW - 14 - gr;
+    gauge.cy = panelH * 0.55;
+    gLabel.position.set(gauge.cx, 8);
+    gMeter.clear();
+    drawGauge(gMeter, gauge.cx, gauge.cy, gauge.r);
     const railY = clusterY + panelH - 4;
     const gap = rr + 8;
     rail.clear();
@@ -277,8 +337,12 @@ export async function createHud() {
       toast.visible = !splash && Boolean(state.toast);
       if (splash) {
         warn.visible = false;
+        vignette.clear();
         return;
       }
+      const g = Math.max(0, Math.min(1, state.g || 0));
+      paintVignette(vignette, app.screen.width, app.screen.height, g);
+      paintNeedle(gNeedle, gauge.cx, gauge.cy, gauge.r, g);
       speedVal.text = fmtSpeed(state.speed);
       let drive = "COAST";
       let driveFill = 0x8aa0b8;

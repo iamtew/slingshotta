@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { alignArcade, createPass, engineArcade, ghostPath, KM, leanNose, selfCheck, slingMix, slingNose, step, wellPull } from "./physics.js";
+import { alignArcade, createPass, engineArcade, feltG, ghostPath, KM, leanNose, selfCheck, slingMix, slingNose, step, wellPull } from "./physics.js";
 import { createHud, fmtDist, fmtSpeed, selfCheck as hudCheck } from "./hud.js";
 import { selfCheck as tiltCheck } from "./tilt.js";
 import {
@@ -115,6 +115,7 @@ const LEAN_EASE = 4;
 const ROLL_MAX = 0.61;
 let flipAng = 0;
 let leanDepth = 0;
+let gLoad = 0;
 
 // Always spin the same way. Brake rests at π (bell forward); release continues to 2π.
 function remainingFlip(phase, braking) {
@@ -162,6 +163,7 @@ function reset() {
   flipAng = 0;
   leanDepth = 0;
   pull.set(0, 0, 0);
+  gLoad = 0;
   clearFlight();
 }
 
@@ -489,6 +491,7 @@ function paintDevReadout(dt, nearest, nearestD) {
     fmtDist(ship.x) + "  " + fmtDist(ship.y) + "  " + fmtDist(ship.z),
     fmtSpeed(ship.vx) + "  " + fmtSpeed(ship.vy) + "  " + fmtSpeed(ship.vz),
     fmtSpeed(speed),
+    gLoad.toFixed(2) + " g",
     nearest.id + "  " + fmtDist(nearestD),
   ].join("\n");
 }
@@ -617,6 +620,7 @@ function paintHud(now, nearest, nearestD, danger) {
     orient,
     planets: radarBodies,
     danger,
+    g: Math.min(1, gLoad),
     rcs: rcsLabel(),
     splash,
   });
@@ -808,6 +812,9 @@ function frame(now) {
   forward.set(0, 0, 1).applyQuaternion(orient);
   up.set(0, 1, 0).applyQuaternion(orient);
   poseHull(dt);
+  const vx0 = ship.vx;
+  const vy0 = ship.vy;
+  const vz0 = ship.vz;
   engineArcade(ship, leanedNose.x, leanedNose.y, leanedNose.z, dt, thrust || boost, brake, boost);
 
   const hit = step(ship, bodies, pass, dt);
@@ -845,6 +852,7 @@ function frame(now) {
     }
   }
   alignArcade(ship, leanedNose.x, leanedNose.y, leanedNose.z, dt, leanDepth);
+  gLoad = feltG(vx0, vy0, vz0, ship.vx, ship.vy, ship.vz, dt);
 
   craft.position.set(ship.x, ship.y, ship.z);
   const bellFwd = 0.5 - 0.5 * Math.cos(flipAng);
@@ -873,8 +881,9 @@ function frame(now) {
     danger = span > 1e-4 ? 1 - (nearestD - nearest.radius) / span : 1;
     danger = Math.max(0, Math.min(1, danger));
   }
+  const highG = gLoad > 0.5 ? Math.min(1, (gLoad - 0.5) / 0.5) : 0;
 
-  chaseCam(danger, dt);
+  chaseCam(Math.max(danger, highG), dt);
   paintHud(now, nearest, nearestD, danger);
   paintDevReadout(dt, nearest, nearestD);
 

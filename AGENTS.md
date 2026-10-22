@@ -37,11 +37,14 @@ Arcade flight. The ship flies where the nose points. A faint line trails the flo
 - The white tick on the nose is heading. The dashed cyan line is a ballistic read of current velocity.
 - W thrust. S brake: the hull yaws and the bell burns. Shift boost. No strafe. In a well the hull leans toward the body and the path follows.
 - Gamepad: either stick aims, triggers thrust and brake, B boosts, bumpers roll. Start opens the menu. D-pad or stick moves, A selects, B backs.
-- Enter or Esc pauses and opens the menu (resume, restart, how to play, controls, help).
+- Touch overlays (auto on coarse pointers): thrust, brake, boost, roll, look disc, and a Menu button. Portrait and landscape both work. Settings can force overlays on or off.
+- Gyro (off until granted in Settings): tilt aims pitch and yaw. Engines stay on the overlays.
+- Enter, Esc, Start, or the Menu overlay pauses (resume, restart, how to play, controls, settings, help). Controls lists bindings. Settings holds invert, overlays, and gyro.
 - Splash first: ship coasts, camera orbits it, any button continues. Menu Exit returns to splash. HUD drive reads RCS pitch/yaw/roll while jets fire.
 
 ## Files
 
 - `src/physics.js` — step, arcade engine/align, and `selfCheck`. Change the rules here, not in the renderer.
 - `src/hud.js` — Pixi overlay, radar projection, HUD `selfCheck`.
+- `src/tilt.js` — device tilt to screen yaw/pitch, and `selfCheck`.
 - `src/main.js` — scene, input, loop.

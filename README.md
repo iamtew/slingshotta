@@ -10,11 +10,13 @@ From this folder:
 npx serve .
 ```
 
-Open the URL it prints. Press a button on the splash to fly. Click the view to capture the mouse. Enter, Esc, or Start opens the menu.
+Open the URL it prints. Press a button on the splash to fly. Click the view to capture the mouse. Enter, Esc, Start, or the Menu overlay opens the menu. Portrait and landscape both work. On a phone, translucent pads cover thrust, brake, boost, roll, and look. Gyro aim is off until you grant it in Settings.
 
 The ship flies where the nose points. W thrusts, S brakes by yawing the hull so the bell burns, Shift boosts. In a well the hull leans in and the path follows. Mouse or arrows pitch and yaw. A / D rolls. The white tick on the nose is heading. The dashed cyan line is where current velocity goes. The round disc is a 3D radar. Graze the instrument rings around a body. Rocks have a small well too. Speeds are m/s. Distances are metres, kilometres past 1000 m.
 
 A gamepad works too: either stick aims, triggers thrust and brake, B boosts, bumpers roll. Start opens the menu, A selects, B backs.
+
+Controls in the pause menu lists every binding. Settings holds invert, touch overlays (auto / on / off), and gyro.
 
 ## GitHub Pages
 

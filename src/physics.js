@@ -13,6 +13,7 @@ const CRUISE = 40 * KM;
 const BOOST_MULT = 1.8;
 const ALIGN_SPACE = 2;
 const ALIGN_WELL = 0.35;
+const SLING = 2.2;
 // Extra 1/r on top of Newtonian. Surface pull is (1+CLOSE)×, far coast barely moves.
 const CLOSE = 10;
 
@@ -198,6 +199,23 @@ export function ghostPath(ship, bodies, dt, n, out) {
 }
 
 // Nose tips toward a pull. depth 0 leaves it. depth 1 blends 0.45 of the way, about 25° sideways.
+// Mix the nose toward current velocity so a well's bend is not aligned away on exit.
+export function slingNose(nx, ny, nz, vx, vy, vz, mix) {
+  const a = Math.max(0, Math.min(1, mix));
+  const sp = hypot3(vx, vy, vz);
+  if (a < 1e-8 || sp < 1e-8) return { x: nx, y: ny, z: nz };
+  const x = nx * (1 - a) + (vx / sp) * a;
+  const y = ny * (1 - a) + (vy / sp) * a;
+  const z = nz * (1 - a) + (vz / sp) * a;
+  const n = hypot3(x, y, z);
+  if (n < 1e-8) return { x: nx, y: ny, z: nz };
+  return { x: x / n, y: y / n, z: z / n };
+}
+
+export function slingMix(depth, dt) {
+  return 1 - Math.exp(-SLING * Math.max(0, depth) * dt);
+}
+
 export function leanNose(nx, ny, nz, px, py, pz, depth) {
   const a = 0.45 * Math.max(0, Math.min(1, depth));
   const x = nx + px * a;
@@ -237,10 +255,11 @@ export function wellPull(ship, bodies) {
   return { x, y, z, depth };
 }
 
-export function alignArcade(ship, nx, ny, nz, dt, inWell) {
+export function alignArcade(ship, nx, ny, nz, dt, wellBlend) {
   const speed = hypot3(ship.vx, ship.vy, ship.vz);
   if (speed < 1e-6) return;
-  const align = inWell ? ALIGN_WELL : ALIGN_SPACE;
+  const t = Math.max(0, Math.min(1, wellBlend));
+  const align = ALIGN_SPACE + (ALIGN_WELL - ALIGN_SPACE) * t;
   const k = Math.min(1, align * dt);
   ship.vx += (nx * speed - ship.vx) * k;
   ship.vy += (ny * speed - ship.vy) * k;
@@ -336,9 +355,13 @@ export function selfCheck() {
   engineArcade(stop, 0, 0, 1, 0.1, false, true, false);
   assert(stop.vz < 20 * KM && stop.vz > 0, "brake");
   const side = { vx: 10 * KM, vy: 0, vz: 0 };
-  alignArcade(side, 0, 0, 1, 0.5, false);
+  alignArcade(side, 0, 0, 1, 0.5, 0);
   assert(side.vz > 0 && side.vx < 10 * KM, "align");
   assert(Math.abs(hypot3(side.vx, side.vy, side.vz) - 10 * KM) < 1e-6, "align keeps speed");
+  const still = slingNose(0, 0, 1, 1, 0, 0, 0);
+  assert(Math.abs(still.x) < 1e-9 && Math.abs(still.z - 1) < 1e-9, "sling mix 0");
+  const yanked = slingNose(0, 0, 1, 1, 0, 0, 1);
+  assert(yanked.x > 0.9 && Math.abs(yanked.z) < 0.1, "sling mix 1 faces vel");
 
   const rock = {
     id: "r",
@@ -375,6 +398,51 @@ export function selfCheck() {
   const aNear = gravityScale(1, 10, 10) * 10;
   const aFar = gravityScale(1, 10, 40) * 40;
   assert(aNear / aFar > 16, "close bite steeper than 1/r^2");
+
+  // Side graze with gravity. Heading follows the bend so exit keeps the sideways kick.
+  const slingBody = {
+    id: "s",
+    x: 0,
+    y: 0,
+    z: 0,
+    radius: 10,
+    gm: 400,
+    well: 28,
+    sweetIn: 14,
+    sweetOut: 24,
+  };
+  const slingShip = { x: 18, y: 0, z: -50, vx: 0, vy: 0, vz: 28 };
+  const slingPass = createPass();
+  let nx = 0;
+  let ny = 0;
+  let nz = 1;
+  let depth = 0;
+  let seenWell = false;
+  let after = -1;
+  let vxExit = 0;
+  for (let i = 0; i < 400; i++) {
+    step(slingShip, [slingBody], slingPass, 0.02);
+    const r = hypot3(slingShip.x, slingShip.y, slingShip.z);
+    const span = slingBody.well - slingBody.radius;
+    const raw = r < slingBody.well && span > 1e-4 ? (slingBody.well - r) / span : 0;
+    depth += (raw - depth) * (1 - Math.exp(-4 * 0.02));
+    if (raw > 0) seenWell = true;
+    if (seenWell && raw <= 0 && after < 0) {
+      after = 0;
+      vxExit = slingShip.vx;
+    } else if (after >= 0) {
+      after += 0.02;
+    }
+    const n = slingNose(nx, ny, nz, slingShip.vx, slingShip.vy, slingShip.vz, slingMix(depth, 0.02));
+    nx = n.x;
+    ny = n.y;
+    nz = n.z;
+    alignArcade(slingShip, nx, ny, nz, 0.02, depth);
+    if (after > 1.2) break;
+  }
+  assert(after > 1, "sling left the well");
+  assert(Math.abs(vxExit) > 3, "sling actually bent");
+  assert(Math.abs(slingShip.vx) > 0.5 * Math.abs(vxExit), "sling keeps the curve");
 
   const straight = leanNose(0, 0, 1, 1, 0, 0, 0);
   assert(Math.abs(straight.x) < 1e-9 && Math.abs(straight.z - 1) < 1e-9, "lean depth 0");

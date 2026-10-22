@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { alignArcade, createPass, engineArcade, ghostPath, KM, leanNose, selfCheck, step, wellPull } from "./physics.js";
+import { alignArcade, createPass, engineArcade, ghostPath, KM, leanNose, selfCheck, slingMix, slingNose, step, wellPull } from "./physics.js";
 import { createHud, selfCheck as hudCheck } from "./hud.js";
 import { screenTilt, selfCheck as tiltCheck } from "./tilt.js";
 
@@ -1253,16 +1253,14 @@ function zoneOf(p, d) {
 function nearestBody() {
   let nearest = bodies[0];
   let nearestD = Infinity;
-  let inWell = false;
   for (const b of bodies) {
     const d = Math.hypot(ship.x - b.x, ship.y - b.y, ship.z - b.z);
-    if (b.well > 0 && d < b.well) inWell = true;
     if (d < nearestD) {
       nearestD = d;
       nearest = b;
     }
   }
-  return { nearest, nearestD, inWell };
+  return { nearest, nearestD };
 }
 
 function paintWells() {
@@ -1507,8 +1505,21 @@ function frame(now) {
     return;
   }
 
-  const { nearest, nearestD, inWell } = nearestBody();
-  alignArcade(ship, leanedNose.x, leanedNose.y, leanedNose.z, dt, inWell);
+  const { nearest, nearestD } = nearestBody();
+  // Pick up the well's bend so space-align does not yank velocity back onto the old nose.
+  if (leanDepth > 0.02) {
+    const sn = slingNose(forward.x, forward.y, forward.z, ship.vx, ship.vy, ship.vz, slingMix(leanDepth, dt));
+    axis.set(sn.x, sn.y, sn.z);
+    if (forward.dot(axis) > -0.999) {
+      turn.setFromUnitVectors(forward, axis);
+      orient.premultiply(turn);
+      orient.normalize();
+      forward.set(0, 0, 1).applyQuaternion(orient);
+      const nose = leanNose(forward.x, forward.y, forward.z, pull.x, pull.y, pull.z, leanDepth);
+      leanedNose.set(nose.x, nose.y, nose.z);
+    }
+  }
+  alignArcade(ship, leanedNose.x, leanedNose.y, leanedNose.z, dt, leanDepth);
 
   craft.position.set(ship.x, ship.y, ship.z);
   placeTick();

@@ -297,10 +297,11 @@ const rockGeos = [
   new THREE.IcosahedronGeometry(1, 0),
   new THREE.DodecahedronGeometry(1, 0),
   new THREE.OctahedronGeometry(1, 0),
+  new THREE.TetrahedronGeometry(1, 0),
 ];
 const rockMat = new THREE.MeshPhongMaterial({ color: 0x8a8178, shininess: 4, flatShading: true });
 const dummy = new THREE.Object3D();
-for (let kind = 0; kind < 3; kind++) {
+for (let kind = 0; kind < rockGeos.length; kind++) {
   const batch = rocks.filter((r) => r.kind === kind);
   if (!batch.length) continue;
   const mesh = new THREE.InstancedMesh(rockGeos[kind], rockMat, batch.length);

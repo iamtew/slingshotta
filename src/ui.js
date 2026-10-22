@@ -68,15 +68,29 @@ function paintSettings() {
   }
   page.querySelector("[data-act=overlays]").textContent = "Touch overlays: " + inputPrefs.overlays;
   page.querySelector("[data-act=gyro]").textContent = gyroLabel();
+  page.querySelector("[data-act=developer]").textContent = "Developer mode: " + (inputPrefs.developer ? "on" : "off");
+}
+
+function paintDevEntry() {
+  document.querySelector("[data-act=dev]").hidden = !inputPrefs.developer;
+}
+
+function paintDetails() {
+  document.querySelector("[data-act=details]").textContent = "Details: " + (inputPrefs.details ? "on" : "off");
 }
 
 function showMenuPage(name) {
   menuPage = name;
-  for (const id of ["home", "how", "controls", "settings", "help", "ship"]) {
+  for (const id of ["home", "how", "controls", "settings", "help", "ship", "dev"]) {
     document.querySelector("#menu-" + id).hidden = id !== name;
   }
   menu.classList.toggle("wide", name === "ship");
+  paintDevEntry();
   if (name === "settings") paintSettings();
+  if (name === "dev") {
+    paintDetails();
+    document.querySelector("#dev-seed").value = inputPrefs.seed;
+  }
   if (name === "ship") showShip();
   else hideShip();
   menuIx = 0;
@@ -130,6 +144,20 @@ function runMenu(act) {
     toggleGyro().then(paintSettings);
   } else if (act === "recenter") {
     recenterGyro();
+  } else if (act === "developer") {
+    inputPrefs.developer = !inputPrefs.developer;
+    savePrefs();
+    paintSettings();
+    paintDevEntry();
+    hooks.syncDevReadout();
+    hooks.applyWorld(inputPrefs.developer ? inputPrefs.seed : "classic");
+  } else if (act === "details") {
+    inputPrefs.details = !inputPrefs.details;
+    savePrefs();
+    paintDetails();
+    hooks.syncDevReadout();
+  } else if (act === "load-seed") {
+    if (hooks.loadSeed(document.querySelector("#dev-seed").value)) setMenu(false);
   } else if (act === "palette") {
     choosePalette(menuButtons()[menuIx]?.dataset.palette);
   } else if (act === "slot") {

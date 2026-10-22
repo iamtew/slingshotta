@@ -1,8 +1,17 @@
 import * as THREE from "three";
 import { alignArcade, createPass, engineArcade, ghostPath, KM, leanNose, selfCheck, slingMix, slingNose, step, wellPull } from "./physics.js";
-import { createHud, selfCheck as hudCheck } from "./hud.js";
+import { createHud, fmtDist, fmtSpeed, selfCheck as hudCheck } from "./hud.js";
 import { selfCheck as tiltCheck } from "./tilt.js";
-import { bodies, planets, moons, rocks, radarBodies, SPAWN, selfCheck as worldCheck } from "./world.js";
+import {
+  SPAWN as classicSpawn,
+  bodies as classicBodies,
+  layout,
+  moons as classicMoons,
+  planets as classicPlanets,
+  radarBodies as classicRadar,
+  rocks as classicRocks,
+  selfCheck as worldCheck,
+} from "./world.js";
 import { createRacer } from "./ship.js";
 import { createSky } from "./sky.js";
 import { createFx } from "./fx.js";
@@ -12,12 +21,14 @@ import {
   clearPadHold,
   coarsePointer,
   gyroAxes,
+  inputPrefs,
   invert,
   keys,
   lookStick,
   mouse,
   overlaysWanted,
   padHold,
+  savePrefs,
 } from "./input.js";
 import {
   bindUi,
@@ -41,6 +52,26 @@ selfCheck();
 hudCheck();
 tiltCheck();
 worldCheck();
+
+const classicWorld = {
+  bodies: classicBodies,
+  planets: classicPlanets,
+  moons: classicMoons,
+  rocks: classicRocks,
+  radarBodies: classicRadar,
+  SPAWN: classicSpawn,
+};
+
+function worldFor(seed) {
+  return seed === "classic" ? classicWorld : layout(seed);
+}
+
+let activeSeed = inputPrefs.developer ? inputPrefs.seed : "classic";
+let world = worldFor(activeSeed);
+let bodies = world.bodies;
+let radarBodies = world.radarBodies;
+let SPAWN = world.SPAWN;
+let home = world.planets[0];
 
 const TURN = 2.2;
 const MAX_SPIN = 2.2;
@@ -137,9 +168,9 @@ function reset() {
 reset();
 
 function poseSplash() {
-  ship.x = 80 * KM;
-  ship.y = 48 * KM;
-  ship.z = -260 * KM;
+  ship.x = home.x + 80 * KM;
+  ship.y = home.y + 48 * KM;
+  ship.z = home.z - 260 * KM;
   ship.vx = 4 * KM;
   ship.vy = 0;
   ship.vz = 10 * KM;
@@ -191,57 +222,6 @@ const fill = new THREE.PointLight(0xd8e8ff, 3.2, 20 * KM);
 scene.add(fill);
 
 const { hitchSky, planetMap } = createSky(scene, camera, fill, KM);
-
-for (const p of planets) {
-  const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(p.radius, 36, 24),
-    new THREE.MeshPhongMaterial({
-      map: planetMap(p.color),
-      color: 0xffffff,
-      shininess: 8,
-      specular: 0x222222,
-    })
-  );
-  mesh.position.set(p.x, p.y, p.z);
-  scene.add(mesh);
-  if (p.id === "Rhea") {
-    // Flat annuli. A torus tube reads as a donut.
-    const rings = new THREE.Group();
-    const bands = [
-      [1.28, 1.36, 0xc4b49a, 0.35],
-      [1.42, 1.72, 0xe6d2a8, 0.55],
-      [1.78, 1.86, 0x8f9bb5, 0.28],
-      [1.94, 2.18, 0xd7c4b0, 0.42],
-      [2.24, 2.32, 0xf0e6d4, 0.22],
-    ];
-    for (const [inner, outer, color, opacity] of bands) {
-      rings.add(
-        new THREE.Mesh(
-          new THREE.RingGeometry(p.radius * inner, p.radius * outer, 80),
-          new THREE.MeshBasicMaterial({
-            color,
-            transparent: true,
-            opacity,
-            side: THREE.DoubleSide,
-            depthWrite: false,
-          })
-        )
-      );
-    }
-    rings.rotation.x = Math.PI / 2.4;
-    rings.position.copy(mesh.position);
-    scene.add(rings);
-  }
-}
-
-for (const m of moons) {
-  const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(m.radius, 24, 16),
-    new THREE.MeshPhongMaterial({ map: planetMap(m.color), color: 0xffffff, shininess: 6 })
-  );
-  mesh.position.set(m.x, m.y, m.z);
-  scene.add(mesh);
-}
 
 const wellMat = new THREE.LineBasicMaterial({
   color: 0x7ecbff,
@@ -302,19 +282,101 @@ const rockGeos = [
 ];
 const rockMat = new THREE.MeshPhongMaterial({ color: 0x8a8178, shininess: 4, flatShading: true });
 const dummy = new THREE.Object3D();
-for (let kind = 0; kind < rockGeos.length; kind++) {
-  const batch = rocks.filter((r) => r.kind === kind);
-  if (!batch.length) continue;
-  const mesh = new THREE.InstancedMesh(rockGeos[kind], rockMat, batch.length);
-  batch.forEach((rock, i) => {
-    dummy.position.set(rock.x, rock.y, rock.z);
-    dummy.rotation.set(rock.rx, rock.ry, rock.rz);
-    dummy.scale.set(rock.radius * rock.sx, rock.radius * rock.sy, rock.radius * rock.sz);
-    dummy.updateMatrix();
-    mesh.setMatrixAt(i, dummy.matrix);
+let system = null;
+
+function clearSystem() {
+  if (!system) return;
+  system.traverse((obj) => {
+    // Rock shapes and rockMat are shared across seeds. Instance data is not.
+    if (obj.isInstancedMesh) {
+      obj.instanceMatrix.dispose?.();
+      return;
+    }
+    if (obj.geometry) obj.geometry.dispose();
+    const mats = obj.material ? [].concat(obj.material) : [];
+    for (const m of mats) {
+      if (m === rockMat || m === wellMat || m === bandMat) continue;
+      m.map?.dispose();
+      m.dispose();
+    }
   });
-  scene.add(mesh);
+  scene.remove(system);
+  system = null;
 }
+
+function mountWorld(next) {
+  clearSystem();
+  bodies = next.bodies;
+  radarBodies = next.radarBodies;
+  SPAWN = next.SPAWN;
+  home = next.planets[0];
+  system = new THREE.Group();
+  scene.add(system);
+  for (const p of next.planets) {
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(p.radius, 36, 24),
+      new THREE.MeshPhongMaterial({
+        map: planetMap(p.color),
+        color: 0xffffff,
+        shininess: 8,
+        specular: 0x222222,
+      })
+    );
+    mesh.position.set(p.x, p.y, p.z);
+    system.add(mesh);
+    if (p.id === "Rhea") {
+      // Flat annuli. A torus tube reads as a donut.
+      const rings = new THREE.Group();
+      const bands = [
+        [1.28, 1.36, 0xc4b49a, 0.35],
+        [1.42, 1.72, 0xe6d2a8, 0.55],
+        [1.78, 1.86, 0x8f9bb5, 0.28],
+        [1.94, 2.18, 0xd7c4b0, 0.42],
+        [2.24, 2.32, 0xf0e6d4, 0.22],
+      ];
+      for (const [inner, outer, color, opacity] of bands) {
+        rings.add(
+          new THREE.Mesh(
+            new THREE.RingGeometry(p.radius * inner, p.radius * outer, 80),
+            new THREE.MeshBasicMaterial({
+              color,
+              transparent: true,
+              opacity,
+              side: THREE.DoubleSide,
+              depthWrite: false,
+            })
+          )
+        );
+      }
+      rings.rotation.x = Math.PI / 2.4;
+      rings.position.copy(mesh.position);
+      system.add(rings);
+    }
+  }
+  for (const m of next.moons) {
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(m.radius, 24, 16),
+      new THREE.MeshPhongMaterial({ map: planetMap(m.color), color: 0xffffff, shininess: 6 })
+    );
+    mesh.position.set(m.x, m.y, m.z);
+    system.add(mesh);
+  }
+  for (let kind = 0; kind < rockGeos.length; kind++) {
+    const batch = next.rocks.filter((r) => r.kind === kind);
+    if (!batch.length) continue;
+    const mesh = new THREE.InstancedMesh(rockGeos[kind], rockMat, batch.length);
+    batch.forEach((rock, i) => {
+      dummy.position.set(rock.x, rock.y, rock.z);
+      dummy.rotation.set(rock.rx, rock.ry, rock.rz);
+      dummy.scale.set(rock.radius * rock.sx, rock.radius * rock.sy, rock.radius * rock.sz);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+    });
+    system.add(mesh);
+  }
+}
+
+mountWorld(world);
 
 const { craft, plume, bell, rcsJets, RCS_DZ, hullMat } = createRacer(scene, SHIP);
 const { ghostPos, ghostGeo, ghostLine, clearTrail, sampleTrail, clearDebris, spawnBurst, stepDebris } = createFx({
@@ -394,9 +456,51 @@ function restartPlay() {
   syncPads();
 }
 
+function applyWorld(seed) {
+  activeSeed = seed;
+  mountWorld(worldFor(seed));
+  if (splash) poseSplash();
+  else restartPlay();
+}
+
+function loadSeed(raw) {
+  const seed = String(raw ?? "").trim() || "classic";
+  if (seed.length > 8) return false;
+  inputPrefs.seed = seed;
+  savePrefs();
+  applyWorld(seed);
+  return true;
+}
+
+const devReadout = document.querySelector("#dev-readout");
+let fps = 0;
+
+function syncDevReadout() {
+  devReadout.hidden = !(inputPrefs.developer && inputPrefs.details);
+}
+
+function paintDevReadout(dt, nearest, nearestD) {
+  if (devReadout.hidden) return;
+  if (dt > 1e-4) fps = fps === 0 ? 1 / dt : fps + (1 / dt - fps) * 0.08;
+  const speed = Math.hypot(ship.vx, ship.vy, ship.vz);
+  devReadout.textContent = [
+    fps.toFixed(0) + " fps",
+    activeSeed,
+    fmtDist(ship.x) + "  " + fmtDist(ship.y) + "  " + fmtDist(ship.z),
+    fmtSpeed(ship.vx) + "  " + fmtSpeed(ship.vy) + "  " + fmtSpeed(ship.vz),
+    fmtSpeed(speed),
+    nearest.id + "  " + fmtDist(nearestD),
+  ].join("\n");
+}
+
+syncDevReadout();
+
 setUiHooks({
   restartPlay,
   poseSplash,
+  loadSeed,
+  applyWorld,
+  syncDevReadout,
   hideGhost() {
     ghostLine.visible = false;
   },
@@ -595,15 +699,18 @@ function frame(now) {
     camera.lookAt(ship.x, ship.y, ship.z);
     const near = nearestBody();
     paintHud(now, near.nearest, near.nearestD, 0);
+    paintDevReadout(dt, near.nearest, near.nearestD);
     hitchSky();
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
     return;
   }
   if (paused) {
+    const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     const near = nearestBody();
     paintHud(now, near.nearest, near.nearestD, 0);
+    paintDevReadout(dt, near.nearest, near.nearestD);
     hitchSky();
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
@@ -625,6 +732,7 @@ function frame(now) {
     const near = nearestBody();
     chaseCam(crashMode === "burst" ? Math.max(0, 1 - crashT / CRASH_BURST) : 0, dt);
     paintHud(now, near.nearest, near.nearestD, 0);
+    paintDevReadout(dt, near.nearest, near.nearestD);
     hitchSky();
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
@@ -715,6 +823,7 @@ function frame(now) {
     const near = nearestBody();
     chaseCam(crashMode === "burst" ? Math.max(0, 1 - crashT / CRASH_BURST) : 0, dt);
     paintHud(now, near.nearest, near.nearestD, 0);
+    paintDevReadout(dt, near.nearest, near.nearestD);
     hitchSky();
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
@@ -767,6 +876,7 @@ function frame(now) {
 
   chaseCam(danger, dt);
   paintHud(now, nearest, nearestD, danger);
+  paintDevReadout(dt, nearest, nearestD);
 
   hitchSky();
   renderer.render(scene, camera);

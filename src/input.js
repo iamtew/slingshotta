@@ -2,7 +2,7 @@
 import { screenTilt } from "./tilt.js";
 
 export const invert = { pitch: false, yaw: true, roll: true };
-export const inputPrefs = { overlays: "auto", gyro: false };
+export const inputPrefs = { overlays: "auto", gyro: false, developer: false, details: false, seed: "classic" };
 const STORE = "slingshotta-input";
 
 export function loadPrefs() {
@@ -13,13 +13,26 @@ export function loadPrefs() {
     if (typeof s.invert?.roll === "boolean") invert.roll = s.invert.roll;
     if (s.overlays === "on" || s.overlays === "off" || s.overlays === "auto") inputPrefs.overlays = s.overlays;
     if (typeof s.gyro === "boolean") inputPrefs.gyro = s.gyro;
+    if (typeof s.developer === "boolean") inputPrefs.developer = s.developer;
+    if (typeof s.details === "boolean") inputPrefs.details = s.details;
+    if (typeof s.seed === "string" && s.seed.length > 0 && s.seed.length <= 8) inputPrefs.seed = s.seed;
   } catch {
     /* keep defaults */
   }
 }
 
 export function savePrefs() {
-  localStorage.setItem(STORE, JSON.stringify({ invert, overlays: inputPrefs.overlays, gyro: inputPrefs.gyro }));
+  localStorage.setItem(
+    STORE,
+    JSON.stringify({
+      invert,
+      overlays: inputPrefs.overlays,
+      gyro: inputPrefs.gyro,
+      developer: inputPrefs.developer,
+      details: inputPrefs.details,
+      seed: inputPrefs.seed,
+    })
+  );
 }
 
 loadPrefs();

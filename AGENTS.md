@@ -59,5 +59,5 @@ Keep a file under ~500 lines. Split at a named concern before it grows past that
 - `src/sky.js` — camera-locked nebula/sun, stars, planet canvases.
 - `src/fx.js` — flown-path trail from the bell, RCS streaks, ballistic ghost line, crash burst.
 - `src/input.js` — prefs, keys, mouse, pads, gyro. Does not import UI.
-- `src/ui.js` — splash, pause pages, crash overlay.
+- `src/ui.js` — splash, pause pages, crash overlay. Settings toggles Developer mode. The Developer page loads an 8-character seed and can show a corner readout.
 - `src/main.js` — renderer, wells, camera, flight loop.

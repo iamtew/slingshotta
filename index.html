@@ -131,7 +131,20 @@
       padding-top: 14vh;
       text-align: center;
     }
-    #menu[hidden], #crash[hidden], #splash[hidden] { display: none; }
+    #menu[hidden], #crash[hidden], #splash[hidden], #dev-readout[hidden],
+    #menu [hidden], #crash [hidden] { display: none; }
+    #dev-readout {
+      position: fixed;
+      z-index: 1;
+      top: calc(10px + env(safe-area-inset-top, 0px));
+      left: calc(10px + env(safe-area-inset-left, 0px));
+      margin: 0;
+      pointer-events: none;
+      white-space: pre;
+      font: 12px/1.45 ui-monospace, Consolas, monospace;
+      color: #d7e2ea;
+      text-shadow: 0 1px 2px #000;
+    }
     #splash h1, #menu h1, #crash h1, #menu .ship-name {
       font-family: ENOCH, Segoe UI, system-ui, sans-serif;
       font-weight: 400;
@@ -281,6 +294,7 @@
       </div>
     </div>
   </div>
+  <pre id="dev-readout" hidden></pre>
   <div id="menu" hidden>
     <div class="panel">
       <h1>Slingshotta</h1>
@@ -291,6 +305,7 @@
         <button type="button" data-act="how">How to play</button>
         <button type="button" data-act="controls">Controls</button>
         <button type="button" data-act="settings">Settings</button>
+        <button type="button" data-act="dev" hidden>Developer</button>
         <button type="button" data-act="help">Help</button>
         <button type="button" data-act="exit">Exit</button>
       </div>
@@ -328,6 +343,13 @@
         <button type="button" data-act="overlays">Touch overlays: auto</button>
         <button type="button" data-act="gyro">Gyro: off</button>
         <button type="button" data-act="recenter">Recenter gyro</button>
+        <button type="button" data-act="developer">Developer mode: off</button>
+        <button type="button" data-act="back">Back</button>
+      </div>
+      <div id="menu-dev" hidden>
+        <button type="button" data-act="details">Details: off</button>
+        <label class="hex">Seed <input id="dev-seed" maxlength="8" spellcheck="false" autocomplete="off" autocapitalize="off"></label>
+        <button type="button" data-act="load-seed">Load seed</button>
         <button type="button" data-act="back">Back</button>
       </div>
       <div id="menu-help" hidden>

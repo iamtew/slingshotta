@@ -229,56 +229,78 @@ scene.add(fill);
 
 const { hitchSky, planetMap } = createSky(scene, camera, fill, KM);
 
-const wellMat = new THREE.LineBasicMaterial({
+const wellMat = new THREE.MeshBasicMaterial({
   color: 0x7ecbff,
   transparent: true,
   opacity: 0.55,
   depthWrite: false,
+  side: THREE.DoubleSide,
 });
-const bandMat = new THREE.LineBasicMaterial({
+const bandMat = new THREE.MeshBasicMaterial({
   color: 0xffb15a,
   transparent: true,
   opacity: 0.72,
   depthWrite: false,
+  side: THREE.DoubleSide,
 });
 
-function ringPts(radius, y, segs) {
-  const pts = [];
-  for (let i = 0; i <= segs; i++) {
-    const a = (i / segs) * Math.PI * 2;
-    pts.push(new THREE.Vector3(Math.cos(a) * radius, y, Math.sin(a) * radius));
-  }
-  return pts;
-}
+// Tube, not a line. A flat ring in the sling plane vanishes edge-on.
+const ringGeo = new THREE.TorusGeometry(1, 0.018, 6, 72);
+// Rim-lit bubble. The face stays clear so the field reads as a shell.
+const shellGeo = new THREE.SphereGeometry(1, 40, 28);
+const shellMat = new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  side: THREE.DoubleSide,
+  blending: THREE.AdditiveBlending,
+  uniforms: {
+    uColor: { value: new THREE.Color(0x7ecbff) },
+    uGain: { value: 0.85 },
+  },
+  vertexShader: `
+    varying vec3 vN;
+    varying vec3 vV;
+    void main() {
+      vec4 w = modelMatrix * vec4(position, 1.0);
+      vN = normalize(mat3(modelMatrix) * normal);
+      vV = normalize(cameraPosition - w.xyz);
+      gl_Position = projectionMatrix * viewMatrix * w;
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 uColor;
+    uniform float uGain;
+    varying vec3 vN;
+    varying vec3 vV;
+    void main() {
+      float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.6);
+      gl_FragColor = vec4(uColor, f * uGain);
+    }
+  `,
+});
+const bandShellMat = shellMat.clone();
+bandShellMat.uniforms.uColor.value.set(0xffb15a);
+bandShellMat.uniforms.uGain.value = 0.4;
 
-function meridianPts(radius, segs) {
-  const pts = [];
-  for (let i = 0; i <= segs; i++) {
-    const a = (i / segs) * Math.PI * 2;
-    pts.push(new THREE.Vector3(0, Math.cos(a) * radius, Math.sin(a) * radius));
-  }
-  return pts;
+function makeRing(material) {
+  const mesh = new THREE.Mesh(ringGeo, material);
+  mesh.rotation.x = Math.PI / 2;
+  return mesh;
 }
 
 function makeWellMark() {
   const g = new THREE.Group();
-  g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(ringPts(1, 0, 48)), wellMat));
-  g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(ringPts(0.86, 0.5, 36)), wellMat));
-  g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(ringPts(0.86, -0.5, 36)), wellMat));
-  const mer = new THREE.Line(new THREE.BufferGeometry().setFromPoints(meridianPts(1, 40)), wellMat);
-  const mer2 = mer.clone();
-  mer2.rotation.y = Math.PI / 2;
-  g.add(mer, mer2);
-  const band = new THREE.Line(new THREE.BufferGeometry().setFromPoints(ringPts(1, 0, 40)), bandMat);
+  const band = makeRing(bandMat);
   band.name = "band";
-  g.add(band);
+  const inner = new THREE.Mesh(shellGeo, bandShellMat);
+  inner.name = "shellBand";
+  g.add(new THREE.Mesh(shellGeo, shellMat), inner, makeRing(wellMat), band);
   g.visible = false;
   scene.add(g);
   return g;
 }
 
 const wellPool = Array.from({ length: 12 }, makeWellMark);
-const wellNear = [];
 
 const rockGeos = [
   new THREE.IcosahedronGeometry(1, 0),
@@ -301,7 +323,7 @@ function clearSystem() {
     if (obj.geometry) obj.geometry.dispose();
     const mats = obj.material ? [].concat(obj.material) : [];
     for (const m of mats) {
-      if (m === rockMat || m === wellMat || m === bandMat) continue;
+      if (m === rockMat || m === wellMat || m === bandMat || m === shellMat || m === bandShellMat) continue;
       m.map?.dispose();
       m.dispose();
     }
@@ -579,20 +601,20 @@ function nearestBody() {
 }
 
 function paintWells() {
-  wellNear.length = 0;
+  const near = [];
   for (const b of bodies) {
-    if (b.well <= 0) continue;
+    if (!(b.well > 0)) continue;
     const d = Math.hypot(ship.x - b.x, ship.y - b.y, ship.z - b.z);
-    if (d < b.well * WELL_SHOW) wellNear.push(b);
+    if (d < b.well * WELL_SHOW) near.push(b);
   }
-  wellNear.sort((a, c) => {
+  near.sort((a, c) => {
     const da = Math.hypot(ship.x - a.x, ship.y - a.y, ship.z - a.z);
     const dc = Math.hypot(ship.x - c.x, ship.y - c.y, ship.z - c.z);
     return da - dc;
   });
   for (let i = 0; i < wellPool.length; i++) {
     const mark = wellPool[i];
-    const b = wellNear[i];
+    const b = near[i];
     if (!b) {
       mark.visible = false;
       continue;
@@ -600,9 +622,9 @@ function paintWells() {
     mark.visible = true;
     mark.position.set(b.x, b.y, b.z);
     mark.scale.setScalar(b.well);
-    const band = mark.getObjectByName("band");
     const s = b.sweetIn / b.well;
-    band.scale.set(s, s, s);
+    mark.getObjectByName("band").scale.set(s, s, s);
+    mark.getObjectByName("shellBand").scale.set(s, s, s);
   }
 }
 

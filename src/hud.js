@@ -180,36 +180,23 @@ function paintNeedle(g, cx, cy, r, load) {
   g.fill({ color: 0xe8f0f6, alpha: 0.9 });
 }
 
-function paintVignette(g, w, h, load) {
-  g.clear();
-  if (load < 0.02) return;
-  const cx = w * 0.5;
-  const cy = h * 0.5;
-  g.rect(0, 0, w, h);
-  g.fill({ color: 0x07080e, alpha: load * 0.16 });
-  for (const t of [1, 0.84, 0.68]) {
-    g.ellipse(cx, cy, w * 0.54 * t, h * 0.54 * t);
-    g.stroke({ width: 36 + load * 48, color: 0x07080e, alpha: load * 0.42 * (1.15 - t) });
-  }
+// One soft falloff. Stretched over the frame it reads as a tunnel, not rings.
+function tunnelCanvas() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const ctx = c.getContext("2d");
+  const falloff = ctx.createRadialGradient(64, 64, 18, 64, 64, 72);
+  falloff.addColorStop(0, "rgba(7,8,14,0)");
+  falloff.addColorStop(0.45, "rgba(7,8,14,0)");
+  falloff.addColorStop(0.78, "rgba(7,8,14,0.55)");
+  falloff.addColorStop(1, "rgba(7,8,14,1)");
+  ctx.fillStyle = falloff;
+  ctx.fillRect(0, 0, 128, 128);
+  return c;
 }
 
-function paintFeel(g, w, h, load, now, spin) {
+function paintFeel(g, w, h, spin) {
   g.clear();
-  for (let i = 1; i <= 6; i++) {
-    g.moveTo(0, (i / 7) * h);
-    g.lineTo(w, (i / 7) * h);
-  }
-  g.stroke({ width: 1, color: 0x7ecbff, alpha: 0.035 + load * 0.07 });
-  if (load >= 0.05) {
-    const t = now * 0.001;
-    for (let i = 0; i < 3; i++) {
-      const y = (0.08 + (Math.sin(t * (8 + i * 4) + i) * 0.5 + 0.5) * 0.84) * h;
-      const x = (Math.sin(t * 6 + i) * 0.5 + 0.5) * w * 0.5;
-      g.moveTo(x, y);
-      g.lineTo(x + w * (0.16 + load * 0.22), y);
-    }
-    g.stroke({ width: 2, color: ((now / 90) | 0) % 2 ? 0xff9a3c : 0x7ecbff, alpha: 0.14 + load * 0.32 });
-  }
   const px = spinMark(spin?.x);
   const py = spinMark(spin?.y);
   const pz = spinMark(spin?.z);
@@ -245,7 +232,7 @@ function paintFeel(g, w, h, load, now, spin) {
 }
 
 export async function createHud() {
-  const { Application, Container, Graphics, Text } = await import("pixi.js");
+  const { Application, Container, Graphics, Sprite, Texture, Text } = await import("pixi.js");
   const canvas = document.querySelector("#hud");
   const app = new Application();
   await app.init({
@@ -265,15 +252,14 @@ export async function createHud() {
   const speedVal = new Text({ text: "0 m/s", style: VALUE });
   const driveVal = new Text({ text: "COAST", style: LABEL });
   speedLabel.position.set(18, 8);
-  speedVal.position.set(18, 24);
-  driveVal.position.set(18, 56);
   const gMeter = new Graphics();
   const gNeedle = new Graphics();
   const gLabel = new Text({ text: "G", style: LABEL });
   gLabel.anchor.set(0.5, 0);
   left.addChild(leftBg, speedLabel, speedVal, driveVal, gMeter, gNeedle, gLabel);
 
-  const vignette = new Graphics();
+  const vignette = new Sprite(Texture.from(tunnelCanvas()));
+  vignette.alpha = 0;
   const feel = new Graphics();
 
   const right = new Container();
@@ -361,11 +347,23 @@ export async function createHud() {
     drawBracket(leftBg, panelW, panelH, false);
     rightBg.clear();
     drawBracket(rightBg, panelW, panelH, true);
-    const gr = panelH < 80 ? 16 : 24;
+    const tight = panelH < 80;
+    const gr = tight ? 14 : 18;
     gauge.r = gr;
-    gauge.cx = panelW - 14 - gr;
-    gauge.cy = panelH * 0.55;
-    gLabel.position.set(gauge.cx, 8);
+    gauge.cx = panelW - 10 - gr;
+    // Hub sits under the G label, above the speed digits.
+    gauge.cy = gr + 14;
+    gLabel.position.set(gauge.cx, 2);
+    // Speed starts under the hub so the needle, which rests on that line, stays clear.
+    const speedY = gauge.cy + (tight ? 8 : 14);
+    const driveY = panelH - (tight ? 14 : 16);
+    const room = gauge.cx - gauge.r - 28;
+    const speedSize = Math.max(13, Math.min(tight ? 15 : 20, driveY - speedY - 2, (room / 5.6) | 0));
+    speedVal.style.fontSize = speedSize;
+    speedVal.position.set(18, speedY);
+    driveVal.position.set(18, driveY);
+    vignette.width = w;
+    vignette.height = h;
     gMeter.clear();
     drawGauge(gMeter, gauge.cx, gauge.cy, gauge.r);
     const railY = clusterY + panelH - 4;
@@ -420,7 +418,7 @@ export async function createHud() {
       toast.visible = !splash && Boolean(state.toast);
       if (splash) {
         warn.visible = false;
-        vignette.clear();
+        vignette.alpha = 0;
         feel.clear();
         app.stage.position.set(0, 0);
         return;
@@ -430,8 +428,8 @@ export async function createHud() {
       const load = strain(danger, g, state.kick);
       const sw = app.screen.width;
       const sh = app.screen.height;
-      paintVignette(vignette, sw, sh, g);
-      paintFeel(feel, sw, sh, load, state.now, state.spin);
+      vignette.alpha = g < 0.02 ? 0 : g * 0.82;
+      paintFeel(feel, sw, sh, state.spin);
       app.stage.position.set(load > 0.04 ? (Math.random() - 0.5) * load * 5 : 0, load > 0.04 ? (Math.random() - 0.5) * load * 4 : 0);
       paintNeedle(gNeedle, gauge.cx, gauge.cy, gauge.r, g);
       let speed = fmtSpeed(state.speed);

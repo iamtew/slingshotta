@@ -126,10 +126,18 @@
     }
     #menu[hidden], #crash[hidden], #splash[hidden] { display: none; }
     #splash h1 {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
       margin: 0 0 18px;
       font-size: 42px;
       letter-spacing: 0.12em;
       text-shadow: 0 0 18px #7ecbff88;
+    }
+    #splash h1 img {
+      width: auto;
+      height: 40px;
     }
     #splash .prompt {
       margin: 0;
@@ -276,7 +284,10 @@
   </div>
   <div id="splash">
     <div>
-      <h1>Slingshotta</h1>
+      <h1 class="brand">
+        <img src="assets/logo.svg" alt="" width="40" height="40">
+        Slingshotta
+      </h1>
       <p class="prompt">Press a button to continue</p>
     </div>
   </div>

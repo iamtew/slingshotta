@@ -1,16 +1,36 @@
 import * as THREE from "three";
 import { alignArcade, createPass, engineArcade, ghostPath, KM, leanNose, selfCheck, step, wellPull } from "./physics.js";
 import { createHud, selfCheck as hudCheck } from "./hud.js";
+import { screenTilt, selfCheck as tiltCheck } from "./tilt.js";
 
 selfCheck();
 hudCheck();
+tiltCheck();
 
 const TURN = 2.2;
 const MAX_SPIN = 2.2;
 // Locked mouse: pixels this frame are turn rate, then they clear.
 const MOUSE_TURN = 0.15;
-// Yaw and roll start inverted. Pitch starts normal. Toggles on the Controls page.
+// Yaw and roll start inverted. Pitch starts normal. Toggles on Settings.
 const invert = { pitch: false, yaw: true, roll: true };
+const inputPrefs = { overlays: "auto", gyro: false };
+const STORE = "slingshotta-input";
+function loadPrefs() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORE) || "{}");
+    if (typeof s.invert?.pitch === "boolean") invert.pitch = s.invert.pitch;
+    if (typeof s.invert?.yaw === "boolean") invert.yaw = s.invert.yaw;
+    if (typeof s.invert?.roll === "boolean") invert.roll = s.invert.roll;
+    if (s.overlays === "on" || s.overlays === "off" || s.overlays === "auto") inputPrefs.overlays = s.overlays;
+    if (typeof s.gyro === "boolean") inputPrefs.gyro = s.gyro;
+  } catch {
+    /* keep defaults */
+  }
+}
+function savePrefs() {
+  localStorage.setItem(STORE, JSON.stringify({ invert, overlays: inputPrefs.overlays, gyro: inputPrefs.gyro }));
+}
+loadPrefs();
 // Wide of Vela, coasting +Z. Doing nothing misses. Steer in for the ring.
 const SPAWN = { x: -90 * KM, y: 8 * KM, z: -420 * KM, vx: 0, vy: 0, vz: 12 * KM };
 const WELL_SHOW = 2.2;
@@ -188,6 +208,17 @@ const mouse = { x: 0, y: 0 };
 const menu = document.querySelector("#menu");
 const crashEl = document.querySelector("#crash");
 const splashEl = document.querySelector("#splash");
+const padsEl = document.querySelector("#pads");
+const padEngines = document.querySelector("#pad-engines");
+const padAim = document.querySelector("#pad-aim");
+const padMenuBtn = document.querySelector("#pad-menu");
+const padLook = document.querySelector("#pad-look");
+const padKnob = document.querySelector("#pad-knob");
+const padHold = { thrust: false, brake: false, boost: false, rollL: false, rollR: false };
+const lookStick = { x: 0, y: 0, id: null };
+let gyroLive = false;
+const gyroSample = { beta: null, gamma: null };
+const gyroZero = { beta: null, gamma: null };
 let crashMode = "play";
 let splash = true;
 let splashAng = 0;
@@ -213,11 +244,138 @@ function invertLabel(axis) {
   return axis[0].toUpperCase() + axis.slice(1) + ": " + (invert[axis] ? "inverted" : "normal");
 }
 
+function needsGyroGrant() {
+  return typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function";
+}
+
+function onOrient(e) {
+  if (e.beta == null || e.gamma == null) return;
+  gyroSample.beta = e.beta;
+  gyroSample.gamma = e.gamma;
+  if (gyroZero.beta == null) {
+    gyroZero.beta = e.beta;
+    gyroZero.gamma = e.gamma;
+  }
+}
+
+function stopGyroListen() {
+  gyroLive = false;
+  gyroSample.beta = gyroSample.gamma = null;
+  removeEventListener("deviceorientation", onOrient);
+}
+
+function startGyroListen() {
+  if (gyroLive) return;
+  gyroZero.beta = gyroZero.gamma = null;
+  addEventListener("deviceorientation", onOrient);
+  gyroLive = true;
+}
+
+async function toggleGyro() {
+  if (inputPrefs.gyro && gyroLive) {
+    inputPrefs.gyro = false;
+    stopGyroListen();
+    savePrefs();
+    paintSettings();
+    return;
+  }
+  if (needsGyroGrant()) {
+    let perm = "denied";
+    try {
+      perm = await DeviceOrientationEvent.requestPermission();
+    } catch {
+      perm = "denied";
+    }
+    if (perm !== "granted") {
+      inputPrefs.gyro = false;
+      stopGyroListen();
+      savePrefs();
+      paintSettings();
+      return;
+    }
+  }
+  inputPrefs.gyro = true;
+  startGyroListen();
+  savePrefs();
+  paintSettings();
+}
+
+function recenterGyro() {
+  if (gyroSample.beta == null) return;
+  gyroZero.beta = gyroSample.beta;
+  gyroZero.gamma = gyroSample.gamma;
+}
+
+function gyroAxes() {
+  if (!gyroLive || gyroSample.beta == null || gyroZero.beta == null) return { pitch: 0, yaw: 0 };
+  const angle = screen.orientation?.angle ?? window.orientation ?? 0;
+  const t = screenTilt(gyroSample.beta - gyroZero.beta, gyroSample.gamma - gyroZero.gamma, angle);
+  const dead = 2;
+  const full = 28;
+  function axis(v) {
+    if (Math.abs(v) < dead) return 0;
+    return Math.max(-1, Math.min(1, v / full));
+  }
+  return { pitch: axis(t.pitch), yaw: axis(t.yaw) };
+}
+
+function coarsePointer() {
+  return matchMedia("(pointer: coarse)").matches;
+}
+
+function overlaysWanted() {
+  if (inputPrefs.overlays === "on") return true;
+  if (inputPrefs.overlays === "off") return false;
+  return coarsePointer() || "ontouchstart" in window;
+}
+
+function flying() {
+  return !splash && !paused && crashMode === "play";
+}
+
+function clearPadHold() {
+  padHold.thrust = padHold.brake = padHold.boost = padHold.rollL = padHold.rollR = false;
+  lookStick.id = null;
+  lookStick.x = lookStick.y = 0;
+  padKnob.style.transform = "";
+  for (const btn of padsEl.querySelectorAll("[data-hold]")) btn.classList.remove("on");
+}
+
+function syncPads() {
+  const play = flying();
+  const full = play && overlaysWanted();
+  const menuOnly = play && coarsePointer() && !full;
+  padsEl.hidden = !full && !menuOnly;
+  padEngines.hidden = !full;
+  padAim.hidden = !full;
+}
+
+function playHint() {
+  if (overlaysWanted()) return "Touch pads to fly. White tick is the nose. Menu is top right.";
+  return "Click to steer. White tick is the nose. Dashed cyan is where velocity goes. Enter or Esc: menu.";
+}
+
+function gyroLabel() {
+  if (!inputPrefs.gyro) return "Gyro: off";
+  if (gyroLive) return "Gyro: on";
+  return "Gyro: on — tap to grant";
+}
+
+function paintSettings() {
+  const page = document.querySelector("#menu-settings");
+  for (const btn of page.querySelectorAll("[data-act=invert]")) {
+    btn.textContent = invertLabel(btn.dataset.axis);
+  }
+  page.querySelector("[data-act=overlays]").textContent = "Touch overlays: " + inputPrefs.overlays;
+  page.querySelector("[data-act=gyro]").textContent = gyroLabel();
+}
+
 function showMenuPage(name) {
   menuPage = name;
-  for (const id of ["home", "how", "controls", "help"]) {
+  for (const id of ["home", "how", "controls", "settings", "help"]) {
     document.querySelector("#menu-" + id).hidden = id !== name;
   }
+  if (name === "settings") paintSettings();
   menuIx = 0;
   focusMenu();
 }
@@ -244,6 +402,16 @@ function runMenu(act) {
     if (!axisName) return;
     invert[axisName] = !invert[axisName];
     btn.textContent = invertLabel(axisName);
+    savePrefs();
+  } else if (act === "overlays") {
+    inputPrefs.overlays = inputPrefs.overlays === "auto" ? "on" : inputPrefs.overlays === "on" ? "off" : "auto";
+    savePrefs();
+    paintSettings();
+    syncPads();
+  } else if (act === "gyro") {
+    toggleGyro();
+  } else if (act === "recenter") {
+    recenterGyro();
   } else if (act === "exit") enterSplash();
   else if (act === "back") showMenuPage("home");
   else showMenuPage(act);
@@ -266,6 +434,7 @@ function endSplash() {
   reset();
   clearTrail();
   ghostLine.visible = false;
+  syncPads();
 }
 
 function rcsLabel() {
@@ -350,6 +519,8 @@ function setMenu(open) {
     document.exitPointerLock?.();
     ghostLine.visible = false;
   }
+  clearPadHold();
+  syncPads();
 }
 
 addEventListener("keydown", (e) => {
@@ -371,7 +542,9 @@ addEventListener("keydown", (e) => {
   if (e.code.startsWith("Arrow") || e.code === "Space") e.preventDefault();
 });
 addEventListener("keyup", (e) => keys.delete(e.code));
-addEventListener("pointerdown", () => {
+addEventListener("pointerdown", (e) => {
+  if (e.target.closest("#pads, #menu, #crash, #splash")) return;
+  if (overlaysWanted()) return;
   if (!paused && crashMode === "play") pointerDown = true;
 });
 addEventListener("pointerup", () => {
@@ -397,6 +570,7 @@ renderer.domElement.addEventListener("click", () => {
   }
   sawClick = true;
   if (paused || crashMode !== "play") return;
+  if (coarsePointer() || overlaysWanted()) return;
   renderer.domElement.requestPointerLock();
 });
 menu.addEventListener("click", (e) => {
@@ -408,6 +582,70 @@ menu.addEventListener("click", (e) => {
   if (ix >= 0) menuIx = ix;
   runMenu(act);
 });
+
+function setLook(x, y) {
+  lookStick.x = x;
+  lookStick.y = y;
+  const reach = padLook.clientWidth * 0.5 - 18;
+  padKnob.style.transform = "translate(" + x * reach + "px, " + y * reach + "px)";
+}
+
+function lookFromEvent(e) {
+  const box = padLook.getBoundingClientRect();
+  const cx = box.left + box.width * 0.5;
+  const cy = box.top + box.height * 0.5;
+  const r = Math.max(1, box.width * 0.5);
+  const nx = (e.clientX - cx) / r;
+  const ny = (e.clientY - cy) / r;
+  const mag = Math.hypot(nx, ny) || 1;
+  const k = mag > 1 ? 1 / mag : 1;
+  setLook(nx * k, ny * k);
+}
+
+padLook.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  padLook.setPointerCapture(e.pointerId);
+  lookStick.id = e.pointerId;
+  lookFromEvent(e);
+});
+padLook.addEventListener("pointermove", (e) => {
+  if (lookStick.id !== e.pointerId) return;
+  lookFromEvent(e);
+});
+function endLook(e) {
+  if (lookStick.id !== e.pointerId) return;
+  lookStick.id = null;
+  setLook(0, 0);
+}
+padLook.addEventListener("pointerup", endLook);
+padLook.addEventListener("pointercancel", endLook);
+
+padsEl.addEventListener("pointerdown", (e) => {
+  const btn = e.target.closest("[data-hold]");
+  if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  btn.setPointerCapture(e.pointerId);
+  padHold[btn.dataset.hold] = true;
+  btn.classList.add("on");
+});
+function endHold(e) {
+  const btn = e.target.closest("[data-hold]");
+  if (!btn) return;
+  padHold[btn.dataset.hold] = false;
+  btn.classList.remove("on");
+}
+padsEl.addEventListener("pointerup", endHold);
+padsEl.addEventListener("pointercancel", endHold);
+padsEl.addEventListener("contextmenu", (e) => e.preventDefault());
+padMenuBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  setMenu(true);
+});
+
+if (inputPrefs.gyro && !needsGyroGrant()) startGyroListen();
+syncPads();
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1 * KM, 5000 * KM);
@@ -867,6 +1105,8 @@ function beginCrash() {
   mouse.x = 0;
   mouse.y = 0;
   pointerDown = false;
+  clearPadHold();
+  syncPads();
   clearDebris();
   const wx = craft.position.x;
   const wy = craft.position.y;
@@ -911,6 +1151,7 @@ function restartPlay() {
   clearDebris();
   clearTrail();
   ghostLine.visible = false;
+  syncPads();
 }
 
 crashEl.addEventListener("click", (e) => {
@@ -920,15 +1161,18 @@ splashEl.addEventListener("click", endSplash);
 
 const hud = await createHud();
 function sizeView() {
-  camera.aspect = innerWidth / innerHeight;
+  const vv = visualViewport;
+  const w = Math.round(vv?.width ?? innerWidth);
+  const h = Math.round(vv?.height ?? innerHeight);
+  camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(w, h);
+  renderer.domElement.style.left = (vv?.offsetLeft ?? 0) + "px";
+  renderer.domElement.style.top = (vv?.offsetTop ?? 0) + "px";
 }
 sizeView();
-const DEFAULT_HINT =
-  "Click to steer. White tick is the nose. Dashed cyan is where velocity goes. Enter or Esc: menu.";
 let hintUntil = 0;
-let hintText = DEFAULT_HINT;
+let hintText = playHint();
 let sawClick = false;
 
 function say(text) {
@@ -937,6 +1181,9 @@ function say(text) {
 }
 
 addEventListener("resize", sizeView);
+visualViewport?.addEventListener("resize", sizeView);
+visualViewport?.addEventListener("scroll", sizeView);
+addEventListener("orientationchange", sizeView);
 
 let last = performance.now();
 let thrust = false;
@@ -994,7 +1241,7 @@ function paintWells() {
 
 function paintHud(now, nearest, nearestD, danger) {
   if (hintUntil && now > hintUntil) {
-    hintText = DEFAULT_HINT;
+    hintText = playHint();
     hintUntil = 0;
   }
   const toast = hintUntil || !sawClick ? hintText : "";
@@ -1105,6 +1352,7 @@ function frame(now) {
       if (crashT >= CRASH_BURST) {
         crashMode = "overlay";
         crashEl.hidden = false;
+        syncPads();
       }
     }
     const near = nearestBody();
@@ -1129,6 +1377,16 @@ function frame(now) {
   if (keys.has("ArrowRight")) yaw += 1;
   if (keys.has("KeyA") || keys.has("KeyQ")) roll -= 1;
   if (keys.has("KeyD") || keys.has("KeyE")) roll += 1;
+  if (padHold.thrust) thrust = true;
+  if (padHold.brake) brake = true;
+  if (padHold.boost) boost = true;
+  if (padHold.rollL) roll -= 1;
+  if (padHold.rollR) roll += 1;
+  pitch += lookStick.y;
+  yaw += lookStick.x;
+  const gyro = gyroAxes();
+  pitch += gyro.pitch;
+  yaw += gyro.yaw;
   // Mouse right yaws right. Pitch starts normal: mouse up pitches the nose up.
   const mouseYaw = mouse.x * MOUSE_TURN;
   const mousePitch = mouse.y * MOUSE_TURN;

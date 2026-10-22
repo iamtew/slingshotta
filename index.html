@@ -2,28 +2,112 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Slingshotta</title>
   <style>
     html, body {
       margin: 0;
       height: 100%;
+      height: 100dvh;
       overflow: hidden;
       background: #07080e;
       color: #d7e2ea;
       font: 14px/1.35 Segoe UI, system-ui, sans-serif;
+      touch-action: none;
     }
     #view, #hud {
       position: fixed;
       inset: 0;
       width: 100vw;
+      width: 100dvw;
       height: 100vh;
+      height: 100dvh;
       display: block;
     }
-    #view { z-index: 0; }
+    #view { z-index: 0; touch-action: none; }
     #hud {
       z-index: 1;
       pointer-events: none;
+    }
+    #pads {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      touch-action: none;
+    }
+    #pads[hidden] { display: none; }
+    #pads .pad-btn, #pads #pad-look {
+      pointer-events: auto;
+      touch-action: none;
+      color: inherit;
+      font: 12px/1.2 Segoe UI, system-ui, sans-serif;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      background: rgba(10, 18, 28, 0.45);
+      border: 1px solid rgba(126, 203, 255, 0.42);
+      -webkit-backdrop-filter: blur(6px);
+      backdrop-filter: blur(6px);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #pads .pad-btn {
+      min-width: 56px;
+      min-height: 44px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    #pads .pad-btn:active, #pads .pad-btn.on {
+      background: rgba(126, 203, 255, 0.32);
+      border-color: #7ecbff;
+    }
+    #pad-menu {
+      position: absolute;
+      top: calc(10px + env(safe-area-inset-top, 0px));
+      right: calc(10px + env(safe-area-inset-right, 0px));
+    }
+    #pad-engines {
+      position: absolute;
+      left: calc(12px + env(safe-area-inset-left, 0px));
+      bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    #pad-aim {
+      position: absolute;
+      right: calc(12px + env(safe-area-inset-right, 0px));
+      bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+    }
+    #pad-rolls { display: flex; gap: 8px; }
+    #pad-look {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      position: relative;
+    }
+    #pad-knob {
+      position: absolute;
+      width: 36px;
+      height: 36px;
+      margin: -18px 0 0 -18px;
+      left: 50%;
+      top: 50%;
+      border-radius: 50%;
+      background: rgba(126, 203, 255, 0.55);
+      pointer-events: none;
+    }
+    @media (orientation: portrait) {
+      #pad-look { width: 128px; height: 128px; }
+    }
+    @media (orientation: landscape) {
+      #pad-look { width: 108px; height: 108px; }
+      #pad-engines .pad-btn, #pad-rolls .pad-btn { min-height: 44px; padding: 8px 10px; }
     }
     #menu, #crash, #splash {
       position: fixed;
@@ -59,7 +143,7 @@
     }
     #menu .panel, #crash .panel {
       width: min(420px, calc(100vw - 32px));
-      max-height: calc(100vh - 32px);
+      max-height: calc(100dvh - 32px);
       overflow: auto;
       box-sizing: border-box;
       background: rgba(10, 18, 28, 0.94);
@@ -97,6 +181,23 @@
 </head>
 <body>
   <canvas id="hud"></canvas>
+  <div id="pads" hidden>
+    <button type="button" id="pad-menu" class="pad-btn" aria-label="Open menu">Menu</button>
+    <div id="pad-engines">
+      <button type="button" class="pad-btn" data-hold="thrust">Thrust</button>
+      <button type="button" class="pad-btn" data-hold="brake">Brake</button>
+      <button type="button" class="pad-btn" data-hold="boost">Boost</button>
+    </div>
+    <div id="pad-aim">
+      <div id="pad-rolls">
+        <button type="button" class="pad-btn" data-hold="rollL" aria-label="Roll left">Roll L</button>
+        <button type="button" class="pad-btn" data-hold="rollR" aria-label="Roll right">Roll R</button>
+      </div>
+      <div id="pad-look" role="application" aria-label="Look">
+        <div id="pad-knob"></div>
+      </div>
+    </div>
+  </div>
   <div id="menu" hidden>
     <div class="panel">
       <h1>Slingshotta</h1>
@@ -105,6 +206,7 @@
         <button type="button" data-act="restart">Restart</button>
         <button type="button" data-act="how">How to play</button>
         <button type="button" data-act="controls">Controls</button>
+        <button type="button" data-act="settings">Settings</button>
         <button type="button" data-act="help">Help</button>
         <button type="button" data-act="exit">Exit</button>
       </div>
@@ -125,13 +227,21 @@
           <li>Triggers: thrust / brake</li>
           <li>B: boost</li>
           <li>Bumpers: roll</li>
-          <li>Enter / Esc / Start: menu</li>
+          <li>Touch overlays: thrust, brake, boost, roll, look disc</li>
+          <li>Gyro (if on): tilt aims pitch and yaw</li>
+          <li>Enter / Esc / Start / Menu overlay: menu</li>
           <li>D-pad or stick: menu move</li>
           <li>A: menu select, B: back</li>
         </ul>
+        <button type="button" data-act="back">Back</button>
+      </div>
+      <div id="menu-settings" hidden>
         <button type="button" data-act="invert" data-axis="pitch">Pitch: normal</button>
         <button type="button" data-act="invert" data-axis="yaw">Yaw: inverted</button>
         <button type="button" data-act="invert" data-axis="roll">Roll: inverted</button>
+        <button type="button" data-act="overlays">Touch overlays: auto</button>
+        <button type="button" data-act="gyro">Gyro: off</button>
+        <button type="button" data-act="recenter">Recenter gyro</button>
         <button type="button" data-act="back">Back</button>
       </div>
       <div id="menu-help" hidden>

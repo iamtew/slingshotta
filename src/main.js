@@ -116,6 +116,8 @@ const ROLL_MAX = 0.61;
 let flipAng = 0;
 let leanDepth = 0;
 let gLoad = 0;
+let burnKick = 0;
+let wasBurn = false;
 
 // Always spin the same way. Brake rests at π (bell forward); release continues to 2π.
 function remainingFlip(phase, braking) {
@@ -164,6 +166,8 @@ function reset() {
   leanDepth = 0;
   pull.set(0, 0, 0);
   gLoad = 0;
+  burnKick = 0;
+  wasBurn = false;
   clearFlight();
 }
 
@@ -621,6 +625,8 @@ function paintHud(now, nearest, nearestD, danger) {
     planets: radarBodies,
     danger,
     g: Math.min(1, gLoad),
+    kick: paused || splash ? 0 : burnKick,
+    spin: paused || splash ? { x: 0, y: 0, z: 0 } : spin,
     rcs: rcsLabel(),
     splash,
   });
@@ -734,8 +740,10 @@ function frame(now) {
       }
     }
     const near = nearestBody();
-    chaseCam(crashMode === "burst" ? Math.max(0, 1 - crashT / CRASH_BURST) : 0, dt);
-    paintHud(now, near.nearest, near.nearestD, 0);
+    const burst = crashMode === "burst" ? Math.max(0, 1 - crashT / CRASH_BURST) : 0;
+    burnKick *= Math.exp(-10 * dt);
+    chaseCam(Math.max(burst, burnKick), dt);
+    paintHud(now, near.nearest, near.nearestD, burst);
     paintDevReadout(dt, near.nearest, near.nearestD);
     hitchSky();
     renderer.render(scene, camera);
@@ -820,16 +828,21 @@ function frame(now) {
   const hit = step(ship, bodies, pass, dt);
   const nearHit = nearestBody();
   noteFlight(dt, hit, nearHit.nearest, nearHit.nearestD);
+  if ((thrust || boost) && !wasBurn) burnKick = boost ? 0.55 : 0.32;
+  wasBurn = thrust || boost;
   if (hit.event === "crash") {
     beginCrash(hit.bodyId);
   } else if (hit.event === "boost") {
     say("Boost off " + hit.bodyId + ".");
+    burnKick = Math.max(burnKick, 0.72);
   }
+  burnKick *= Math.exp(-10 * dt);
 
   if (crashMode !== "play") {
     const near = nearestBody();
-    chaseCam(crashMode === "burst" ? Math.max(0, 1 - crashT / CRASH_BURST) : 0, dt);
-    paintHud(now, near.nearest, near.nearestD, 0);
+    const burst = crashMode === "burst" ? Math.max(0, 1 - crashT / CRASH_BURST) : 0;
+    chaseCam(Math.max(burst, burnKick), dt);
+    paintHud(now, near.nearest, near.nearestD, burst);
     paintDevReadout(dt, near.nearest, near.nearestD);
     hitchSky();
     renderer.render(scene, camera);
@@ -883,7 +896,7 @@ function frame(now) {
   }
   const highG = gLoad > 0.5 ? Math.min(1, (gLoad - 0.5) / 0.5) : 0;
 
-  chaseCam(Math.max(danger, highG), dt);
+  chaseCam(Math.max(danger, highG, burnKick), dt);
   paintHud(now, nearest, nearestD, danger);
   paintDevReadout(dt, nearest, nearestD);
 

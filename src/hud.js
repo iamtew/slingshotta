@@ -164,6 +164,14 @@ const COUNT = {
   letterSpacing: 6,
   stroke: { color: 0x041208, width: 6 },
 };
+const CLOCK = {
+  fontFamily: "ENOCH, Segoe UI, system-ui, sans-serif",
+  fontSize: 42,
+  fill: CRT_LIT,
+  fontWeight: "400",
+  letterSpacing: 3,
+  stroke: { color: 0x041208, width: 5 },
+};
 
 // Open chevron + ticks. No fill. mirror=true is the right (nearest) side.
 function drawBracket(g, w, h, mirror) {
@@ -326,9 +334,8 @@ export async function createHud() {
 
   const toast = new Text({ text: "", style: TOAST });
   toast.anchor.set(0.5, 1);
-  const clock = new Text({ text: "0.0 s", style: VALUE });
-  clock.anchor.set(0.5, 1);
-  clock.style.fontSize = 18;
+  const clock = new Text({ text: "0.0 s", style: CLOCK });
+  clock.anchor.set(0.5, 0);
   const count = new Text({ text: "", style: COUNT });
   count.anchor.set(0.5, 0.5);
 
@@ -384,8 +391,10 @@ export async function createHud() {
     left.position.set(radarX - rr - GAP - panelW, clusterY);
     right.position.set(radarX + rr + GAP, clusterY);
     radar.position.set(radarX, radarY);
-    clock.position.set(radarX, clusterY - 10);
-    toast.position.set(radarX, clusterY - 44);
+    clock.position.set(w * 0.5, portrait ? 14 : 18);
+    clock.style.fontSize = short < 720 ? 28 : 42;
+    toast.anchor.set(0.5, 0);
+    toast.position.set(w * 0.5, (portrait ? 14 : 18) + (short < 720 ? 34 : 52));
     toast.style.wordWrapWidth = Math.min(560, w - 40);
     warnText.position.set(w * 0.5, h * 0.38);
     count.position.set(w * 0.5, h * 0.36);
@@ -463,12 +472,14 @@ export async function createHud() {
     update(state) {
       layout();
       const splash = Boolean(state.splash);
-      left.visible = right.visible = radar.visible = rail.visible = clock.visible = !splash;
+      left.visible = right.visible = radar.visible = rail.visible = !splash;
+      clock.visible = !splash && Boolean(state.race);
       toast.visible = !splash && Boolean(state.toast);
       count.visible = !splash && Boolean(state.count);
       if (splash) {
         warn.visible = false;
         count.visible = false;
+        clock.visible = false;
         vignette.alpha = 0;
         feel.clear();
         app.stage.position.set(0, 0);

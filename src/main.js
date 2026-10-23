@@ -248,7 +248,6 @@ function rcsLabel() {
   return "RCS ROLL";
 }
 
-let sawClick = false;
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "low-power" });
 renderer.setPixelRatio(1);
 renderer.setSize(innerWidth, innerHeight);
@@ -260,7 +259,6 @@ renderer.domElement.addEventListener("click", () => {
     endSplash();
     return;
   }
-  sawClick = true;
   if (paused || crashMode !== "play") return;
   if (coarsePointer() || overlaysWanted()) return;
   renderer.domElement.requestPointerLock();
@@ -627,6 +625,8 @@ function restartPlay() {
     goT = 0;
     goFlash = 0;
   }
+  hintText = playHint();
+  hintUntil = performance.now() + 4200;
   setCrashMode("play");
   crashT = 0;
   crashEl.hidden = true;
@@ -710,9 +710,7 @@ setUiHooks({
   hideGhost() {
     ghostLine.visible = false;
   },
-  onLeaveSplash() {
-    sawClick = true;
-  },
+  onLeaveSplash() {},
   onKey(e) {
     keys.add(e.code);
     if (e.code.startsWith("Arrow") || e.code === "Space") e.preventDefault();
@@ -814,7 +812,7 @@ function paintWells(dt) {
 
 function paintHud(now, nearest, nearestD, danger) {
   if (hintUntil && now > hintUntil) {
-    hintText = playHint();
+    hintText = "";
     hintUntil = 0;
   }
   let panel = { id: nearest.id, dist: nearestD, zone: passHint(ship, nearest) };
@@ -827,8 +825,7 @@ function paintHud(now, nearest, nearestD, danger) {
     panel = { id: gate.id, dist, zone: passHint(ship, gate) };
     raceState = { i: Math.min(race.i + 1, n), n, gateId: gate.id, gate };
   }
-  const raceToast = race && !race.done ? raceState.gateId : "";
-  const toast = hintUntil || !sawClick ? hintText : raceToast;
+  const toast = hintUntil ? hintText : "";
   let count = "";
   if (goT > 0) count = String(Math.ceil(goT));
   else if (goFlash > 0) count = "GO";

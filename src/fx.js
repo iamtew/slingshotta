@@ -8,7 +8,7 @@ export function createFx({ scene, ship, km, shipScale, hullMat, ghostN, craft, b
   const ghostLine = new THREE.Line(
     ghostGeo,
     new THREE.LineDashedMaterial({
-      color: 0x7ecbff,
+      color: 0x4ee4ff,
       dashSize: 1.1 * km,
       gapSize: 0.7 * km,
       transparent: true,

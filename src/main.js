@@ -287,14 +287,14 @@ scene.add(fill);
 const { hitchSky, planetMap } = createSky(scene, camera, fill, KM);
 
 const wellMat = new THREE.MeshBasicMaterial({
-  color: 0x6aff8a,
+  color: 0x4ee4ff,
   transparent: true,
   opacity: WELL_RING_A,
   depthWrite: false,
   side: THREE.DoubleSide,
 });
 const bandMat = new THREE.MeshBasicMaterial({
-  color: 0xff9a3c,
+  color: 0xffb020,
   transparent: true,
   opacity: WELL_BAND_A,
   depthWrite: false,
@@ -311,7 +311,7 @@ const shellMat = new THREE.ShaderMaterial({
   side: THREE.DoubleSide,
   blending: THREE.AdditiveBlending,
   uniforms: {
-    uColor: { value: new THREE.Color(0x6aff8a) },
+    uColor: { value: new THREE.Color(0x4ee4ff) },
     uGain: { value: WELL_SHELL_G },
   },
   vertexShader: `
@@ -336,7 +336,7 @@ const shellMat = new THREE.ShaderMaterial({
   `,
 });
 const bandShellMat = shellMat.clone();
-bandShellMat.uniforms.uColor.value.set(0xff9a3c);
+bandShellMat.uniforms.uColor.value.set(0xffb020);
 bandShellMat.uniforms.uGain.value = WELL_BAND_G;
 
 function makeRing(material) {

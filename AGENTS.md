@@ -9,7 +9,7 @@ One visit to a planet's well, then the flags clear on the way out.
 - Inside the body: crash. Burst, then a "Pilot crashed" screen. Restart from there.
 - Sweet band, and the pass is mostly sideways: one speed boost along velocity.
 - Outside the well: gravity only. Rocks have a small well and a thin band too.
-- Drawn wells are ship instrumentation (CRT green outer ring, faint amber sweet band), not planet tint. They fade in when the ship is close. Inside the inner band, the view shakes and the HUD warns.
+- Drawn wells are ship instrumentation (CRT cyan outer ring, faint amber sweet band), not planet tint. They fade in when the ship is close. Inside the inner band, the view shakes and the HUD warns.
 
 Do not replace this with a generic orbit sim. Boost or crash is the game.
 
@@ -26,7 +26,7 @@ Relative URLs only, so GitHub Pages project sites (`/slingshotta/`) work.
 Any static server, then open the root. `file://` will not load the module.
 Meat Bag hosts `http://localhost:8000` during development, Clanker doesn't need to host one, because Meat Bag is a real G.
 
-World stays low-spec: pixel ratio 1, antialias off, no postprocessing. Pixi HUD may use `min(2, devicePixelRatio)`. Layout must fit 1440x900 with no page scroll. HUD sits on the bottom center: speed left of the radar with a circular G ball beside it, nearest body right of it. The race clock sits top center. A race starts on 3-2-1-GO, engines locked until GO. Free roam does not count down. Chrome is CRT phosphor green. GRAZE / TOO STEEP / TOO LOW also sit as a center alert while inside a well. High G reuses the inner-band shake and a Pixi tunnel vignette. The HUD glitches under that strain, draws light pitch/yaw/roll ticks while turning, and kicks with the camera when a burn starts. The sun and nebula live on a camera-locked sky, not as bodies in the system.
+World stays low-spec: pixel ratio 1, antialias off, no postprocessing. Pixi HUD may use `min(2, devicePixelRatio)`. Layout must fit 1440x900 with no page scroll. HUD sits on the bottom center: speed left of the radar with a circular G ball beside it, nearest body right of it. The race clock sits top center. A race starts on 3-2-1-GO, engines locked until GO. Free roam does not count down. Chrome is CRT phosphor cyan. GRAZE / TOO STEEP / TOO LOW also sit as a center alert while inside a well. High G reuses the inner-band shake and a Pixi tunnel vignette. The HUD glitches under that strain, draws light pitch/yaw/roll ticks while turning, and kicks with the camera when a burn starts. The sun and nebula live on a camera-locked sky, not as bodies in the system.
 
 World units are metres. `KM` in `src/physics.js` is the feel-preserving arcade clock. Planets are large vs the racer (a Vela graze is several seconds at cruise) and far apart. HUD shows m/s and metres, kilometres past 1000 m.
 

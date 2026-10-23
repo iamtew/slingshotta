@@ -61,7 +61,7 @@
       letter-spacing: 0.06em;
       text-transform: uppercase;
       background: rgba(10, 18, 28, 0.45);
-      border: 1px solid rgba(126, 203, 255, 0.42);
+      border: 1px solid rgba(78, 228, 255, 0.42);
       -webkit-backdrop-filter: blur(6px);
       backdrop-filter: blur(6px);
       user-select: none;
@@ -75,8 +75,8 @@
       cursor: pointer;
     }
     #pads .pad-btn:active, #pads .pad-btn.on {
-      background: rgba(126, 203, 255, 0.32);
-      border-color: #7ecbff;
+      background: rgba(78, 228, 255, 0.32);
+      border-color: #4ee4ff;
     }
     #pad-menu {
       position: absolute;
@@ -115,7 +115,7 @@
       left: 50%;
       top: 50%;
       border-radius: 50%;
-      background: rgba(126, 203, 255, 0.55);
+      background: rgba(78, 228, 255, 0.55);
       pointer-events: none;
     }
     @media (orientation: portrait) {
@@ -166,7 +166,7 @@
       margin: 0 0 18px;
       font-size: 42px;
       letter-spacing: 0.12em;
-      text-shadow: 0 0 18px #7ecbff88;
+      text-shadow: 0 0 18px #4ee4ff88;
     }
     #splash h1 .logo {
       width: 40px;
@@ -186,14 +186,14 @@
       width: min(280px, 70vw);
       height: 8px;
       margin: 18px auto 0;
-      border: 1px solid #6aff8a;
-      background: #041408;
+      border: 1px solid #4ee4ff;
+      background: #07141c;
     }
     #audio-load-bar {
       height: 100%;
       width: 0;
-      background: #6aff8a;
-      box-shadow: 0 0 10px #6aff8a88;
+      background: #4ee4ff;
+      box-shadow: 0 0 10px #4ee4ff88;
     }
     #menu .vol {
       display: grid;
@@ -204,11 +204,11 @@
       padding: 6px 10px 6px 22px;
       letter-spacing: 0.12em;
       text-transform: uppercase;
-      color: #3d8a58;
+      color: #3d9ec4;
       position: relative;
     }
     #menu .vol:has(.on) {
-      background: #6aff8a;
+      background: #4ee4ff;
       color: #07080e;
     }
     #menu .vol:has(.on)::before {
@@ -220,10 +220,10 @@
     #menu .vol input {
       width: 100%;
       min-width: 0;
-      accent-color: #6aff8a;
+      accent-color: #4ee4ff;
       min-height: 28px;
     }
-    #menu .vol:has(.on) input { accent-color: #041408; }
+    #menu .vol:has(.on) input { accent-color: #07141c; }
     #menu .vol-pct {
       font-variant-numeric: tabular-nums;
       text-align: right;
@@ -244,10 +244,10 @@
       max-height: calc(100dvh - 32px);
       overflow: auto;
       box-sizing: border-box;
-      color: #6aff8a;
-      background: rgba(4, 14, 8, 0.94);
-      border: 1px solid #3d8a58;
-      box-shadow: 0 0 0 1px #6aff8a22 inset;
+      color: #4ee4ff;
+      background: rgba(6, 16, 24, 0.94);
+      border: 1px solid #3d9ec4;
+      box-shadow: 0 0 0 1px #4ee4ff22 inset;
       padding: 16px 18px 12px;
     }
     #menu h1, #crash h1 {
@@ -255,7 +255,7 @@
       font-size: 22px;
       letter-spacing: 0.18em;
       text-transform: uppercase;
-      text-shadow: 0 0 12px #6aff8a66;
+      text-shadow: 0 0 12px #4ee4ff66;
     }
     #menu button, #crash button {
       display: block;
@@ -263,7 +263,7 @@
       margin: 0 0 2px;
       padding: 6px 10px 6px 22px;
       text-align: left;
-      color: #3d8a58;
+      color: #3d9ec4;
       background: transparent;
       border: 0;
       font: inherit;
@@ -278,9 +278,9 @@
       left: 8px;
     }
     #menu button.on::before, #crash button.on::before { content: ">"; color: #07080e; }
-    #menu button:hover, #crash button:hover { color: #6aff8a; }
+    #menu button:hover, #crash button:hover { color: #4ee4ff; }
     #menu button.on, #menu button:focus-visible, #crash button.on, #crash button:focus-visible {
-      background: #6aff8a;
+      background: #4ee4ff;
       color: #07080e;
       outline: none;
       text-shadow: none;
@@ -302,7 +302,7 @@
     #menu .brief p { margin: 0 0 8px; line-height: 1.35; }
     #menu .foot, #crash .foot { margin: 6px 0 0; opacity: 0.7; letter-spacing: 0.08em; }
     #menu.wide .panel { width: min(920px, calc(100vw - 32px)); }
-    #menu button.picked { color: #ff9a3c; }
+    #menu button.picked { color: #ffb020; }
     #menu button.picked.on, #menu button.picked:focus-visible { color: #07080e; }
     .ship-layout {
       display: grid;
@@ -343,7 +343,7 @@
       border: 1px solid #31465f;
       font: inherit;
     }
-    #menu .hex input:focus { border-color: #6aff8a; outline: none; }
+    #menu .hex input:focus { border-color: #4ee4ff; outline: none; }
     @media (max-width: 800px) {
       .ship-layout { grid-template-columns: 1fr; }
       #ship-view { height: 240px; }

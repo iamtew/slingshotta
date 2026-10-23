@@ -6,12 +6,12 @@ export const RADAR_RANGE = 480 * KM;
 const TILT = 0.45;
 const RADAR_R = 118;
 const STEM = 36;
-const CRT = 0x6aff8a;
-const CRT_DIM = 0x3d8a58;
-const CRT_LIT = 0xc8ffd4;
-const WARN = 0xff9a3c;
-const HOT = 0xff6a4a;
-const BOOST = 0xffb15a;
+const CRT = 0x4ee4ff;
+const CRT_DIM = 0x3d9ec4;
+const CRT_LIT = 0xe8fbff;
+const WARN = 0xffb020;
+const HOT = 0xff4ec8;
+const BOOST = 0xffe566;
 
 function rotateByQuat(v, q) {
   const tx = 2 * (q.y * v.z - q.z * v.y);
@@ -146,7 +146,7 @@ const TOAST = {
   align: "center",
   wordWrap: true,
   wordWrapWidth: 520,
-  stroke: { color: 0x041208, width: 4 },
+  stroke: { color: 0x07141c, width: 4 },
 };
 const ALERT = {
   fontFamily: "ENOCH, Segoe UI, system-ui, sans-serif",
@@ -154,7 +154,7 @@ const ALERT = {
   fill: HOT,
   fontWeight: "400",
   letterSpacing: 3,
-  stroke: { color: 0x041208, width: 4 },
+  stroke: { color: 0x07141c, width: 4 },
 };
 const COUNT = {
   fontFamily: "ENOCH, Segoe UI, system-ui, sans-serif",
@@ -162,7 +162,7 @@ const COUNT = {
   fill: CRT_LIT,
   fontWeight: "400",
   letterSpacing: 6,
-  stroke: { color: 0x041208, width: 6 },
+  stroke: { color: 0x07141c, width: 6 },
 };
 const CLOCK = {
   fontFamily: "ENOCH, Segoe UI, system-ui, sans-serif",
@@ -170,7 +170,7 @@ const CLOCK = {
   fill: CRT_LIT,
   fontWeight: "400",
   letterSpacing: 3,
-  stroke: { color: 0x041208, width: 5 },
+  stroke: { color: 0x07141c, width: 5 },
 };
 
 // Open chevron + ticks. No fill. mirror=true is the right (nearest) side.
@@ -203,7 +203,7 @@ function drawBracket(g, w, h, mirror) {
 
 function drawGauge(g, cx, cy, r) {
   g.circle(cx, cy, r);
-  g.fill({ color: 0x041208, alpha: 0.5 });
+  g.fill({ color: 0x07141c, alpha: 0.5 });
   g.circle(cx, cy, r);
   g.stroke({ width: 2, color: CRT, alpha: 0.9 });
   for (let i = 0; i < 8; i++) {
@@ -442,7 +442,7 @@ export async function createHud() {
   // Static disc. Blips redraw each frame.
   radarPlate.clear();
   radarPlate.ellipse(0, 0, RADAR_R + 8, (RADAR_R + 8) * TILT);
-  radarPlate.fill({ color: 0x041208, alpha: 0.72 });
+  radarPlate.fill({ color: 0x07141c, alpha: 0.72 });
   radarPlate.ellipse(0, 0, RADAR_R + 8, (RADAR_R + 8) * TILT);
   radarPlate.stroke({ width: 2, color: CRT, alpha: 0.85 });
   for (const t of [1, 0.66, 0.33]) {

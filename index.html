@@ -210,6 +210,12 @@
     #menu .vol:has(.on) {
       background: #4ee4ff;
       color: #07080e;
+      clip-path: polygon(
+        6px 0, calc(100% - 6px) 0,
+        100% 6px, 100% calc(100% - 6px),
+        calc(100% - 6px) 100%, 6px 100%,
+        0 calc(100% - 6px), 0 6px
+      );
     }
     #menu .vol:has(.on)::before {
       content: ">";
@@ -242,13 +248,35 @@
     #menu .panel, #crash .panel {
       width: min(420px, calc(100vw - 32px));
       max-height: calc(100dvh - 32px);
+      position: relative;
       overflow: auto;
       box-sizing: border-box;
       color: #4ee4ff;
-      background: rgba(6, 16, 24, 0.94);
-      border: 1px solid #3d9ec4;
-      box-shadow: 0 0 0 1px #4ee4ff22 inset;
+      /* Chamfer. The frame is the border color; the fill sits 1px in. */
+      background: #3d9ec4;
+      border: 0;
+      isolation: isolate;
+      clip-path: polygon(
+        12px 0, calc(100% - 12px) 0,
+        100% 12px, 100% calc(100% - 12px),
+        calc(100% - 12px) 100%, 12px 100%,
+        0 calc(100% - 12px), 0 12px
+      );
       padding: 16px 18px 12px;
+    }
+    #menu .panel::before, #crash .panel::before {
+      content: "";
+      position: absolute;
+      inset: 1px;
+      z-index: -1;
+      pointer-events: none;
+      background: rgba(6, 16, 24, 0.94);
+      clip-path: polygon(
+        11px 0, calc(100% - 11px) 0,
+        100% 11px, 100% calc(100% - 11px),
+        calc(100% - 11px) 100%, 11px 100%,
+        0 calc(100% - 11px), 0 11px
+      );
     }
     #menu h1, #crash h1 {
       margin: 0 0 10px;
@@ -284,6 +312,12 @@
       color: #07080e;
       outline: none;
       text-shadow: none;
+      clip-path: polygon(
+        6px 0, calc(100% - 6px) 0,
+        100% 6px, 100% calc(100% - 6px),
+        calc(100% - 6px) 100%, 6px 100%,
+        0 calc(100% - 6px), 0 6px
+      );
     }
     #crash-stats {
       margin: 0 0 10px;

@@ -28,7 +28,18 @@ export let splashAng = 0;
 export let crashMode = "play";
 let menuPage = "home";
 let menuIx = 0;
-const padHeld = { start: false, a: false, b: false, up: false, down: false, any: false };
+let lastHomeIx = 0;
+const padHeld = { start: false, a: false, b: false, up: false, down: false, left: false, right: false, any: false };
+const navHold = {};
+const PAGE_TITLE = {
+  home: "Paused",
+  how: "How to play",
+  controls: "Controls",
+  settings: "Settings",
+  ship: "Ship",
+  dev: "Developer",
+};
+const TOGGLE_ACT = { invert: 1, overlays: 1, gyro: 1, developer: 1, details: 1 };
 
 let hooks = {};
 export function setUiHooks(h) {
@@ -81,9 +92,10 @@ function paintDetails() {
 
 function showMenuPage(name) {
   menuPage = name;
-  for (const id of ["home", "how", "controls", "settings", "help", "ship", "dev"]) {
+  for (const id of ["home", "how", "controls", "settings", "ship", "dev"]) {
     document.querySelector("#menu-" + id).hidden = id !== name;
   }
+  document.querySelector("#menu-title").textContent = PAGE_TITLE[name];
   menu.classList.toggle("wide", name === "ship");
   paintDevEntry();
   if (name === "settings") paintSettings();
@@ -93,7 +105,7 @@ function showMenuPage(name) {
   }
   if (name === "ship") showShip();
   else hideShip();
-  menuIx = 0;
+  menuIx = name === "home" ? lastHomeIx : 0;
   focusMenu();
 }
 
@@ -115,6 +127,7 @@ export function focusMenu() {
   menuIx = (menuIx + btns.length) % btns.length;
   for (let i = 0; i < btns.length; i++) btns[i].classList.toggle("on", i === menuIx);
   btns[menuIx].focus({ preventScroll: true });
+  if (paused && menuPage === "home") lastHomeIx = menuIx;
 }
 
 export function showCrashUi() {
@@ -212,6 +225,29 @@ function padEdge(name, now) {
   return fire;
 }
 
+function padRepeat(name, now) {
+  const t = performance.now();
+  if (!now) {
+    delete navHold[name];
+    return false;
+  }
+  const slot = navHold[name];
+  if (!slot) {
+    navHold[name] = { next: t + 280 };
+    return true;
+  }
+  if (t >= slot.next) {
+    slot.next = t + 90;
+    return true;
+  }
+  return false;
+}
+
+function fireToggle() {
+  const act = uiButtons()[menuIx]?.dataset.act;
+  if (TOGGLE_ACT[act]) runMenu(act);
+}
+
 export function pollUi() {
   const pads = navigator.getGamepads?.() ?? [];
   let start = false;
@@ -219,6 +255,8 @@ export function pollUi() {
   let b = false;
   let up = false;
   let down = false;
+  let left = false;
+  let right = false;
   let any = false;
   for (const pad of pads) {
     if (!pad) continue;
@@ -228,12 +266,14 @@ export function pollUi() {
     if (pad.buttons[1]?.pressed) b = true;
     if (pad.buttons[12]?.pressed || (pad.axes[1] ?? 0) < -0.55) up = true;
     if (pad.buttons[13]?.pressed || (pad.axes[1] ?? 0) > 0.55) down = true;
+    if (pad.buttons[14]?.pressed || (pad.axes[0] ?? 0) < -0.55) left = true;
+    if (pad.buttons[15]?.pressed || (pad.axes[0] ?? 0) > 0.55) right = true;
   }
   const startHit = padEdge("start", start);
   const aHit = padEdge("a", a);
   const bHit = padEdge("b", b);
-  const upHit = padEdge("up", up);
-  const downHit = padEdge("down", down);
+  const leftHit = padEdge("left", left);
+  const rightHit = padEdge("right", right);
   const anyHit = padEdge("any", any);
   if (splash) {
     if (anyHit) endSplash();
@@ -257,13 +297,17 @@ export function pollUi() {
   } else {
     return;
   }
-  if (upHit) {
+  if (padRepeat("up", up)) {
     menuIx -= 1;
     focusMenu();
   }
-  if (downHit) {
+  if (padRepeat("down", down)) {
     menuIx += 1;
     focusMenu();
+  }
+  if (leftHit || rightHit) {
+    if (paused && menuPage === "ship") nudgeYaw(rightHit ? 1 : -1);
+    else if (paused) fireToggle();
   }
   if (aHit) {
     const act = uiButtons()[menuIx]?.dataset.act;
@@ -333,6 +377,7 @@ export function bindUi() {
       if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
         e.preventDefault();
         if (paused && menuPage === "ship") nudgeYaw(e.code === "ArrowRight" ? 1 : -1);
+        else if (paused) fireToggle();
         return;
       }
       if (e.code === "Enter" || e.code === "Space") {

@@ -14,9 +14,9 @@ Open the URL it prints. Press a button on the splash to fly. Click the view to c
 
 The ship flies where the nose points. W thrusts, S brakes by pitching the hull so the bell burns (release finishes the flip), Shift boosts. In a well the hull leans in and the path follows; the Pilot keeps that curve on the way out. Mouse or arrows pitch and yaw. A / D rolls. The heat-shield nose is heading. The dashed cyan line is where current velocity goes. The round disc is a 3D radar. Graze the instrument rings around a body. Rocks have a small well too. Speeds are m/s. Distances are metres, kilometres past 1000 m.
 
-A gamepad works too: either stick aims, triggers thrust and brake, B boosts, bumpers roll. Start opens the menu, A selects, B backs.
+A gamepad works too: either stick aims, triggers thrust and brake, B boosts, bumpers roll. Start opens the menu, A selects, B backs. Hold D-pad to run the list. Left or right on a settings row cycles it.
 
-Controls in the pause menu lists every binding. Settings holds invert, touch overlays (auto / on / off), and gyro.
+Controls in the pause menu lists fly and pause bindings. How to play is the briefing. Settings holds invert, touch overlays (auto / on / off), and gyro.
 
 ## Marks
 

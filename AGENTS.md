@@ -39,7 +39,7 @@ Arcade flight. The ship flies where the nose points. A faint line trails the flo
 - Gamepad: either stick aims, triggers thrust and brake, B boosts, bumpers roll. Start opens the menu. D-pad or left stick moves, A selects, B backs. Right stick looks around Setara on the Ship page.
 - Touch overlays (auto on coarse pointers): thrust, brake, boost, roll, look disc, and a Menu button. Portrait and landscape both work. Settings can force overlays on or off.
 - Gyro (off until granted in Settings): tilt aims pitch and yaw. Engines stay on the overlays.
-- Enter, Esc, Start, or the Menu overlay pauses (Ship, resume, restart, how to play, controls, settings, help). Arrows move the menu, Enter selects, Esc backs out. Controls lists bindings. Settings holds invert, overlays, and gyro. Ship is Setara: a preview, part specs, and three paints (vessels, pods, truss).
+- Enter, Esc, Start, or the Menu overlay pauses (Resume first, then Restart, Ship, Settings, Controls, How to play). Arrows or D-pad move (hold repeats), Enter selects, Esc backs out, left/right cycles a toggle. The last home row is remembered. How to play is the briefing. Controls lists bindings. Settings holds invert, overlays, and gyro. Ship is Setara: a preview, part specs, and three paints (vessels, pods, truss).
 - Splash first: ship coasts, camera orbits it, any button continues. Menu Exit returns to splash. HUD drive reads RCS pitch/yaw/roll while jets fire.
 
 Keep a file under ~500 lines. Split at a named concern before it grows past that.

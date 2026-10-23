@@ -190,27 +190,49 @@
       max-height: calc(100dvh - 32px);
       overflow: auto;
       box-sizing: border-box;
-      background: rgba(10, 18, 28, 0.94);
-      border: 1px solid #ff9a3c88;
-      box-shadow: 0 0 0 1px #7ecbff33 inset;
-      padding: 18px 20px 14px;
+      color: #6aff8a;
+      background: rgba(4, 14, 8, 0.94);
+      border: 1px solid #3d8a58;
+      box-shadow: 0 0 0 1px #6aff8a22 inset;
+      padding: 16px 18px 12px;
     }
-    #menu h1, #crash h1 { margin: 0 0 12px; font-size: 18px; }
+    #menu h1, #crash h1 {
+      margin: 0 0 10px;
+      font-size: 22px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      text-shadow: 0 0 12px #6aff8a66;
+    }
     #menu button, #crash button {
       display: block;
       width: 100%;
-      margin: 0 0 8px;
-      padding: 8px 10px;
+      margin: 0 0 2px;
+      padding: 6px 10px 6px 22px;
       text-align: left;
-      color: inherit;
-      background: #101a26;
-      border: 1px solid #31465f;
+      color: #3d8a58;
+      background: transparent;
+      border: 0;
       font: inherit;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
       cursor: pointer;
+      position: relative;
     }
-    #menu button:hover, #menu button:focus, #menu button.on, #crash button:hover, #crash button:focus, #crash button.on { border-color: #7ecbff; outline: none; }
+    #menu button::before, #crash button::before {
+      content: "";
+      position: absolute;
+      left: 8px;
+    }
+    #menu button.on::before, #crash button.on::before { content: ">"; color: #07080e; }
+    #menu button:hover, #crash button:hover { color: #6aff8a; }
+    #menu button.on, #menu button:focus-visible, #crash button.on, #crash button:focus-visible {
+      background: #6aff8a;
+      color: #07080e;
+      outline: none;
+      text-shadow: none;
+    }
     #crash-stats {
-      margin: 0 0 14px;
+      margin: 0 0 10px;
       padding: 0;
       list-style: none;
     }
@@ -218,17 +240,16 @@
       display: flex;
       justify-content: space-between;
       gap: 16px;
-      margin: 0 0 6px;
+      margin: 0 0 4px;
       opacity: 0.88;
     }
     #crash-stats span { font-variant-numeric: tabular-nums; opacity: 1; }
-    #menu p, #crash p { margin: 0 0 10px; }
-    #menu ul { margin: 0 0 12px; padding-left: 1.2em; }
-    #menu li { margin: 0 0 6px; }
-    #menu .foot, #crash .foot { margin: 4px 0 0; opacity: 0.7; }
+    #menu p, #crash p { margin: 0 0 8px; }
+    #menu .brief p { margin: 0 0 8px; line-height: 1.35; }
+    #menu .foot, #crash .foot { margin: 6px 0 0; opacity: 0.7; letter-spacing: 0.08em; }
     #menu.wide .panel { width: min(920px, calc(100vw - 32px)); }
-    #menu button.picked { border-color: #ff9a3c; }
-    #menu button.on, #menu button:focus { border-color: #7ecbff; }
+    #menu button.picked { color: #ff9a3c; }
+    #menu button.picked.on, #menu button.picked:focus-visible { color: #07080e; }
     .ship-layout {
       display: grid;
       grid-template-columns: minmax(220px, 0.9fr) minmax(260px, 1.1fr);
@@ -268,7 +289,7 @@
       border: 1px solid #31465f;
       font: inherit;
     }
-    #menu .hex input:focus { border-color: #7ecbff; outline: none; }
+    #menu .hex input:focus { border-color: #6aff8a; outline: none; }
     @media (max-width: 800px) {
       .ship-layout { grid-template-columns: 1fr; }
       #ship-view { height: 240px; }
@@ -306,43 +327,26 @@
   <pre id="dev-readout" hidden></pre>
   <div id="menu" hidden>
     <div class="panel">
-      <h1>Slingshotta</h1>
+      <h1 id="menu-title">Paused</h1>
       <div id="menu-home">
-        <button type="button" data-act="ship">Ship</button>
         <button type="button" data-act="resume">Resume</button>
         <button type="button" data-act="restart">Restart</button>
-        <button type="button" data-act="how">How to play</button>
-        <button type="button" data-act="controls">Controls</button>
+        <button type="button" data-act="ship">Ship</button>
         <button type="button" data-act="settings">Settings</button>
+        <button type="button" data-act="controls">Controls</button>
+        <button type="button" data-act="how">How to play</button>
         <button type="button" data-act="dev" hidden>Developer</button>
-        <button type="button" data-act="help">Help</button>
         <button type="button" data-act="exit">Exit</button>
       </div>
-      <div id="menu-how" hidden>
-        <p>Graze a body's instrument ring for one speed boost. Hit the body and the Pilot crashes. Rocks and moons pull a little too.</p>
-        <p>Point the nose and the ship goes that way. The heat-shield nose is heading. The dashed cyan line is a ballistic read of current velocity. The round disc is a 3D radar. The G ball sits beside speed and slides off center under load; a hard slingshot darkens the view.</p>
+      <div id="menu-how" hidden class="brief">
+        <p>Graze a body's instrument ring for one speed boost. Hit the body and the Pilot crashes. Rocks and moons pull a little too. Belt rocks are solid and have a thin well.</p>
+        <p>Point the nose. Heat-shield is heading. Dashed cyan is current velocity. Radar is the round disc. The G ball sits beside speed and slides off center under load; a hard slingshot darkens the view.</p>
+        <p>Mouse turn, stop the mouse to stop turning. S brake: hull pitches, bell burns; let go and it finishes the turn. In a well the hull leans in and that curve stays on the way out. Do not reverse. Doing nothing at the start misses Vela.</p>
         <button type="button" data-act="back">Back</button>
       </div>
-      <div id="menu-controls" hidden>
-        <ul>
-          <li>Click the view to capture the mouse</li>
-          <li>Mouse / arrows: pitch and yaw</li>
-          <li>A / D or Q / E: roll</li>
-          <li>W: thrust</li>
-          <li>S: brake (hull pitches, bell burns; release finishes the flip)</li>
-          <li>Shift: boost</li>
-          <li>Gamepad sticks: aim</li>
-          <li>Triggers: thrust / brake</li>
-          <li>B: boost</li>
-          <li>Bumpers: roll</li>
-          <li>Touch overlays: thrust, brake, boost, roll, look disc</li>
-          <li>Gyro (if on): tilt aims pitch and yaw</li>
-          <li>Enter / Esc / Start / Menu overlay: menu</li>
-          <li>Menu: arrows move, Enter selects, Esc backs out</li>
-          <li>D-pad or left stick: menu move</li>
-          <li>Right stick on Ship: look around the hull</li>
-          <li>A: menu select, B: back</li>
-        </ul>
+      <div id="menu-controls" hidden class="brief">
+        <p><b>Fly.</b> Click the view to capture the mouse. W thrust. S brake. Shift boost. Mouse or arrows pitch and yaw. A / D or Q / E roll. Gamepad: sticks aim, triggers thrust / brake, B boost, bumpers roll. Touch pads if shown. Gyro (if on): tilt pitch and yaw.</p>
+        <p><b>Pause.</b> Enter / Esc / Start / Menu overlay. Arrows or D-pad move (hold repeats). Enter or A selects. Esc or B backs. Left / right cycles a toggle. Right stick on Ship looks around the hull.</p>
         <button type="button" data-act="back">Back</button>
       </div>
       <div id="menu-settings" hidden>
@@ -359,11 +363,6 @@
         <button type="button" data-act="details">Details: off</button>
         <label class="hex">Seed <input id="dev-seed" maxlength="8" spellcheck="false" autocomplete="off" autocapitalize="off"></label>
         <button type="button" data-act="load-seed">Load seed</button>
-        <button type="button" data-act="back">Back</button>
-      </div>
-      <div id="menu-help" hidden>
-        <p>Move the mouse to turn. Stop the mouse to stop turning. Brake with S: the hull pitches and the bell burns; let go and it finishes the turn. In a well the hull leans in and the path follows, and that curve stays on the way out. Do not reverse.</p>
-        <p>Doing nothing at the start misses Vela. Steer into the rings when the Pilot wants the boost. Belt rocks are solid and have a thin well.</p>
         <button type="button" data-act="back">Back</button>
       </div>
       <div id="menu-ship" hidden>
@@ -401,7 +400,7 @@
           </div>
         </div>
       </div>
-      <p class="foot">Arrows move. Enter selects. Esc backs out. Start closes.</p>
+      <p class="foot">Arrows move. Enter selects. Esc backs. Start closes.</p>
     </div>
   </div>
   <div id="crash" hidden>

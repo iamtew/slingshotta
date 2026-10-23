@@ -10,6 +10,8 @@ export const inputPrefs = {
   seed: "classic",
   playMode: "free",
   raceKind: "daily",
+  volMaster: 1,
+  volSfx: 1,
 };
 const STORE = "slingshotta-input";
 
@@ -31,6 +33,8 @@ export function loadPrefs() {
     if (typeof s.seed === "string" && s.seed.length > 0 && s.seed.length <= 8) inputPrefs.seed = s.seed;
     if (s.playMode === "free" || s.playMode === "race") inputPrefs.playMode = s.playMode;
     if (s.raceKind === "daily" || s.raceKind === "weekly") inputPrefs.raceKind = s.raceKind;
+    if (typeof s.volMaster === "number") inputPrefs.volMaster = s.volMaster < 0 ? 0 : s.volMaster > 1 ? 1 : s.volMaster;
+    if (typeof s.volSfx === "number") inputPrefs.volSfx = s.volSfx < 0 ? 0 : s.volSfx > 1 ? 1 : s.volSfx;
   } catch {
     /* keep defaults */
   }
@@ -49,6 +53,8 @@ export function savePrefs() {
       seed: inputPrefs.seed,
       playMode: inputPrefs.playMode,
       raceKind: inputPrefs.raceKind,
+      volMaster: inputPrefs.volMaster,
+      volSfx: inputPrefs.volSfx,
     })
   );
 }

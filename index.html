@@ -182,6 +182,60 @@
       opacity: 0.9;
       animation: pulse 1.6s ease-in-out infinite;
     }
+    #audio-load {
+      width: min(280px, 70vw);
+      height: 8px;
+      margin: 18px auto 0;
+      border: 1px solid #6aff8a;
+      background: #041408;
+    }
+    #audio-load-bar {
+      height: 100%;
+      width: 0;
+      background: #6aff8a;
+      box-shadow: 0 0 10px #6aff8a88;
+    }
+    #menu .vol {
+      display: grid;
+      grid-template-columns: 5.6em minmax(0, 1fr) 3.4em;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 2px;
+      padding: 6px 10px 6px 22px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #3d8a58;
+      position: relative;
+    }
+    #menu .vol:has(.on) {
+      background: #6aff8a;
+      color: #07080e;
+    }
+    #menu .vol:has(.on)::before {
+      content: ">";
+      position: absolute;
+      left: 8px;
+      color: #07080e;
+    }
+    #menu .vol input {
+      width: 100%;
+      min-width: 0;
+      accent-color: #6aff8a;
+      min-height: 28px;
+    }
+    #menu .vol:has(.on) input { accent-color: #041408; }
+    #menu .vol-pct {
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      letter-spacing: 0.04em;
+    }
+    #menu button.go::after {
+      content: ">";
+      position: absolute;
+      right: 10px;
+      opacity: 0.55;
+    }
+    #menu button.go.on::after, #menu button.go:focus-visible::after { color: #07080e; opacity: 1; }
     @keyframes pulse {
       50% { opacity: 0.35; }
     }
@@ -329,12 +383,12 @@
     <div class="panel">
       <h1 id="menu-title">Paused</h1>
       <div id="menu-home">
-        <button type="button" data-act="play">Play</button>
-        <button type="button" data-act="ship">Ship</button>
-        <button type="button" data-act="settings">Settings</button>
-        <button type="button" data-act="controls">Controls</button>
-        <button type="button" data-act="how">How to play</button>
-        <button type="button" data-act="dev" hidden>Developer</button>
+        <button type="button" class="go" data-act="play">Play</button>
+        <button type="button" class="go" data-act="ship">Ship</button>
+        <button type="button" class="go" data-act="settings">Settings</button>
+        <button type="button" class="go" data-act="controls">Controls</button>
+        <button type="button" class="go" data-act="how">How to play</button>
+        <button type="button" class="go" data-act="dev" hidden>Developer</button>
         <button type="button" data-act="exit">Exit</button>
       </div>
       <div id="menu-how" hidden class="brief">
@@ -350,6 +404,7 @@
         <button type="button" data-act="back">Back</button>
       </div>
       <div id="menu-settings" hidden>
+        <button type="button" class="go" data-act="audio">Audio</button>
         <button type="button" data-act="invert" data-axis="pitch">Pitch: normal</button>
         <button type="button" data-act="invert" data-axis="yaw">Yaw: inverted</button>
         <button type="button" data-act="invert" data-axis="roll">Roll: normal</button>
@@ -357,6 +412,11 @@
         <button type="button" data-act="gyro">Gyro: off</button>
         <button type="button" data-act="recenter">Recenter gyro</button>
         <button type="button" data-act="developer">Developer mode: off</button>
+        <button type="button" data-act="back">Back</button>
+      </div>
+      <div id="menu-audio" hidden>
+        <label class="vol"><span>Master</span><input id="vol-master" type="range" min="0" max="100" step="5"><span class="vol-pct" id="vol-master-pct">100%</span></label>
+        <label class="vol"><span>SFX</span><input id="vol-sfx" type="range" min="0" max="100" step="5"><span class="vol-pct" id="vol-sfx-pct">100%</span></label>
         <button type="button" data-act="back">Back</button>
       </div>
       <div id="menu-play" hidden>
@@ -424,7 +484,10 @@
         <span class="logo" aria-hidden="true"></span>
         Slingshotta
       </h1>
-      <p class="prompt">Press a button to continue</p>
+      <p class="prompt" id="splash-prompt" hidden>Press a button to continue</p>
+      <div id="audio-load">
+        <div id="audio-load-bar"></div>
+      </div>
     </div>
   </div>
   <script type="module" src="src/main.js"></script>

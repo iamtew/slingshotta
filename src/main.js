@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { alignArcade, createPass, engineArcade, feltG, ghostPath, KM, leanNose, passHint, selfCheck, slingMix, slingNose, step, wellPull } from "./physics.js";
+import { alignArcade, createPass, CRUISE, engineArcade, feltG, ghostPath, KM, leanNose, passHint, selfCheck, slingMix, slingNose, step, wellPull } from "./physics.js";
+import { bake, play, selfCheck as audioCheck, setVolumes, tick as tickAudio, unlock } from "./audio.js";
 import { createHud, fmtDist, fmtSpeed, selfCheck as hudCheck } from "./hud.js";
 import { selfCheck as tiltCheck } from "./tilt.js";
 import {
@@ -47,6 +48,8 @@ import {
   crashEl,
   crashMode,
   endSplash,
+  flying,
+  paintAudioLoad,
   paintCrashStats,
   paintFinishStats,
   paused,
@@ -67,6 +70,9 @@ hudCheck();
 tiltCheck();
 worldCheck();
 raceCheck();
+audioCheck();
+setVolumes(inputPrefs.volMaster, inputPrefs.volSfx);
+bake(paintAudioLoad);
 
 const classicWorld = {
   bodies: classicBodies,
@@ -177,10 +183,12 @@ const flight = { t: 0, dist: 0, vmax: 0, boosts: 0, warns: 0, inWarn: false, x: 
 const GO_COUNT = 3;
 let goT = 0;
 let goFlash = 0;
+let lastCeil = -1;
 
 function armStart() {
   goT = GO_COUNT;
   goFlash = 0;
+  lastCeil = -1;
 }
 
 function clearFlight() {
@@ -474,6 +482,38 @@ const { ghostPos, ghostGeo, ghostLine, clearTrail, sampleTrail, clearDebris, spa
 });
 clearTrail();
 
+function flightAudio(dt, live, near, burn, boosting) {
+  unlock();
+  if (!live) {
+    tickAudio({ flying: false, dt, burn: false, boost: false, speed: 0, well: 0, warn: 0, rcs: false });
+    return;
+  }
+  const info = wellPull(ship, bodies);
+  let warn = 0;
+  if (near && near.nearestD < near.nearest.sweetIn) {
+    const span = near.nearest.sweetIn - near.nearest.radius;
+    warn = span > 1e-4 ? 1 - (near.nearestD - near.nearest.radius) / span : 1;
+    warn = Math.max(0, Math.min(1, warn));
+  }
+  let rcs = false;
+  for (const jet of rcsJets) {
+    if (jet.userData.torque.dot(spin) > RCS_DZ) {
+      rcs = true;
+      break;
+    }
+  }
+  tickAudio({
+    dt,
+    flying: flying(),
+    burn: !!burn,
+    boost: !!boosting,
+    speed: Math.hypot(ship.vx, ship.vy, ship.vz) / CRUISE,
+    well: info.depth,
+    warn,
+    rcs,
+  });
+}
+
 const ribbonMat = new THREE.MeshBasicMaterial({
   color: 0xe070ff,
   transparent: true,
@@ -560,6 +600,7 @@ function noteFlight(dt, hit, nearest, nearestD) {
 }
 
 function beginCrash(bodyId) {
+  play("crash");
   paintCrashStats(flight);
   setCrashMode("burst");
   crashT = 0;
@@ -595,6 +636,7 @@ function beginCrash(bodyId) {
 }
 
 function beginFinish() {
+  play("finish");
   race.done = true;
   const ribbon = ribbonMean(race.sum, race.n);
   const run = {
@@ -933,6 +975,7 @@ function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     orbitSplash(dt);
+    flightAudio(dt, false);
     const near = nearestBody();
     paintHud(now, near.nearest, near.nearestD, 0);
     paintDevReadout(dt, near.nearest, near.nearestD);
@@ -945,6 +988,7 @@ function frame(now) {
     if (ribbonMesh) ribbonMesh.visible = Boolean(race);
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
+    flightAudio(dt, false);
     const near = nearestBody();
     paintHud(now, near.nearest, near.nearestD, 0);
     paintDevReadout(dt, near.nearest, near.nearestD);
@@ -969,6 +1013,7 @@ function frame(now) {
     const near = nearestBody();
     const burst = crashMode === "burst" ? Math.max(0, 1 - crashT / CRASH_BURST) : 0;
     burnKick *= Math.exp(-10 * dt);
+    flightAudio(dt, false);
     chaseCam(Math.max(burst, burnKick), dt);
     paintHud(now, near.nearest, near.nearestD, burst);
     paintDevReadout(dt, near.nearest, near.nearestD);
@@ -1041,6 +1086,16 @@ function frame(now) {
     mouse.y = 0;
     goT = Math.max(0, goT - dt);
     if (goT === 0) goFlash = 0.45;
+    if (goT > 0) {
+      const ceil = Math.ceil(goT);
+      if (ceil !== lastCeil) {
+        lastCeil = ceil;
+        play("count");
+      }
+    } else if (lastCeil !== 0) {
+      lastCeil = 0;
+      play("go");
+    }
   } else if (goFlash > 0) {
     goFlash = Math.max(0, goFlash - dt);
   }
@@ -1064,6 +1119,7 @@ function frame(now) {
   poseHull(dt);
   if (counting) {
     const near = nearestBody();
+    flightAudio(dt, true, near, false, false);
     chaseCam(0, dt);
     paintHud(now, near.nearest, near.nearestD, 0);
     paintDevReadout(dt, near.nearest, near.nearestD);
@@ -1086,12 +1142,16 @@ function frame(now) {
   if (hit.event === "crash") {
     beginCrash(hit.bodyId);
   } else if (hit.event === "boost") {
+    play("sling");
     say("Boost off " + hit.bodyId + ".");
     burnKick = Math.max(burnKick, 0.72);
     if (race && !race.done && hit.bodyId === race.gates[race.i].id) {
       race.i += 1;
       if (race.i >= race.gates.length) beginFinish();
-      else say("Gate " + (race.i + 1) + "/" + race.gates.length + "  " + race.gates[race.i].id);
+      else {
+        play("gate");
+        say("Gate " + (race.i + 1) + "/" + race.gates.length + "  " + race.gates[race.i].id);
+      }
     }
   }
   burnKick *= Math.exp(-10 * dt);
@@ -1099,6 +1159,7 @@ function frame(now) {
   if (crashMode !== "play") {
     const near = nearestBody();
     const burst = crashMode === "burst" ? Math.max(0, 1 - crashT / CRASH_BURST) : 0;
+    flightAudio(dt, false);
     chaseCam(Math.max(burst, burnKick), dt);
     paintHud(now, near.nearest, near.nearestD, burst);
     paintDevReadout(dt, near.nearest, near.nearestD);
@@ -1133,6 +1194,7 @@ function frame(now) {
   const wide = 1 + 1.6 * bellFwd;
   plume.scale.set(wide, along, wide);
   for (const jet of rcsJets) jet.visible = jet.userData.torque.dot(spin) > RCS_DZ;
+  flightAudio(dt, true, nearHit, thrust || boost || bellFwd > 0.04, boost);
   sampleTrail(thrust || boost || bellFwd > 0.04);
   paintWells(dt);
   if (ribbonMesh) ribbonMesh.visible = Boolean(race);

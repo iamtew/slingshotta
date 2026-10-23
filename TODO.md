@@ -51,4 +51,4 @@ Seed string builds the universe layout, which builds the gate chain. Flight step
 
 ## 7. Audio
 
-Does not wait on 1–6. File list, pools, and the mixer notes are in [AUDIO.md](AUDIO.md). Tick the files there as they get made. Code is `src/audio.js` in a later session.
+First pass is in. Generated WebAudio SFX, Master/SFX sliders, bake bar on splash. Cue list and mixer notes stay in [AUDIO.md](AUDIO.md). Music and extra buses wait.

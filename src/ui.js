@@ -16,6 +16,7 @@ import {
 } from "./input.js";
 import { fmtDist, fmtSpeed, fmtTime } from "./hud.js";
 import { choosePalette, chooseSlot, hideShip, nudgeYaw, showShip } from "./shipview.js";
+import { isReady, play, setVolumes, unlock } from "./audio.js";
 
 export const menu = document.querySelector("#menu");
 export const crashEl = document.querySelector("#crash");
@@ -37,6 +38,7 @@ const PAGE_TITLE = {
   how: "How to play",
   controls: "Controls",
   settings: "Settings",
+  audio: "Audio",
   ship: "Ship",
   play: "Play",
   dev: "Developer",
@@ -102,13 +104,14 @@ function paintPlay() {
 
 function showMenuPage(name) {
   menuPage = name;
-  for (const id of ["home", "how", "controls", "settings", "ship", "play", "dev"]) {
+  for (const id of ["home", "how", "controls", "settings", "audio", "ship", "play", "dev"]) {
     document.querySelector("#menu-" + id).hidden = id !== name;
   }
   document.querySelector("#menu-title").textContent = PAGE_TITLE[name];
   menu.classList.toggle("wide", name === "ship");
   paintDevEntry();
   if (name === "settings") paintSettings();
+  if (name === "audio") paintAudio();
   if (name === "play") paintPlay();
   if (name === "dev") {
     paintDetails();
@@ -121,9 +124,32 @@ function showMenuPage(name) {
 }
 
 function menuButtons() {
-  return [...document.querySelector("#menu-" + menuPage).querySelectorAll("button")].filter(
-    (btn) => !btn.closest("[hidden]")
+  return [...document.querySelector("#menu-" + menuPage).querySelectorAll("button, input[type=range]")].filter(
+    (el) => !el.closest("[hidden]")
   );
+}
+
+function paintAudio() {
+  function row(id, v) {
+    const n = Math.round(v * 100);
+    document.querySelector("#" + id).value = String(n);
+    document.querySelector("#" + id + "-pct").textContent = n + "%";
+  }
+  row("vol-master", inputPrefs.volMaster);
+  row("vol-sfx", inputPrefs.volSfx);
+}
+
+function nudgeRange(el, dir) {
+  const next = Math.max(0, Math.min(100, Number(el.value) + dir * 5));
+  el.value = String(next);
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+export function paintAudioLoad(p) {
+  const done = p >= 1;
+  document.querySelector("#audio-load").hidden = done;
+  document.querySelector("#splash-prompt").hidden = !done;
+  if (!done) document.querySelector("#audio-load-bar").style.width = Math.round(p * 100) + "%";
 }
 
 function uiButtons() {
@@ -132,13 +158,14 @@ function uiButtons() {
   return [];
 }
 
-export function focusMenu() {
+export function focusMenu(moved) {
   const btns = uiButtons();
   if (!btns.length) return;
   menuIx = (menuIx + btns.length) % btns.length;
   for (let i = 0; i < btns.length; i++) btns[i].classList.toggle("on", i === menuIx);
   btns[menuIx].focus({ preventScroll: true });
   if (paused && menuPage === "home") lastHomeIx = menuIx;
+  if (moved) play("ui-move");
 }
 
 export function showCrashUi() {
@@ -148,6 +175,12 @@ export function showCrashUi() {
 }
 
 function runMenu(act) {
+  if (act === "back") {
+    play("ui-back");
+    showMenuPage(menuPage === "audio" ? "settings" : "home");
+    return;
+  }
+  if (act !== "resume" && act !== "exit") play("ui-ok");
   if (act === "resume") setMenu(false);
   else if (act === "restart") {
     hooks.restartPlay();
@@ -197,7 +230,6 @@ function runMenu(act) {
   } else if (act === "slot") {
     chooseSlot(menuButtons()[menuIx]?.dataset.slot);
   } else if (act === "exit") enterSplash();
-  else if (act === "back") showMenuPage("home");
   else showMenuPage(act);
 }
 
@@ -212,7 +244,8 @@ export function enterSplash() {
 }
 
 export function endSplash() {
-  if (!splash) return;
+  if (!splash || !isReady()) return;
+  unlock();
   splash = false;
   splashEl.hidden = true;
   waitingPlay = true;
@@ -227,6 +260,8 @@ export function spinSplash(dt) {
 }
 
 export function setMenu(open) {
+  if (open && !paused && !splash) play("ui-ok");
+  if (!open && paused) play("ui-back");
   if (!open && waitingPlay && !splash) {
     paused = true;
     menu.hidden = false;
@@ -332,27 +367,35 @@ export function pollUi() {
   }
   if (padRepeat("up", up)) {
     menuIx -= 1;
-    focusMenu();
+    focusMenu(true);
   }
   if (padRepeat("down", down)) {
     menuIx += 1;
-    focusMenu();
+    focusMenu(true);
   }
   if (leftHit || rightHit) {
+    const el = uiButtons()[menuIx];
     if (paused && menuPage === "ship") nudgeYaw(rightHit ? 1 : -1);
+    else if (el?.type === "range") nudgeRange(el, rightHit ? 1 : -1);
     else if (paused) fireToggle();
   }
   if (aHit) {
-    const act = uiButtons()[menuIx]?.dataset.act;
+    const el = uiButtons()[menuIx];
+    if (el?.type === "range") return;
+    const act = el?.dataset.act;
     if (act) {
       if (paused) runMenu(act);
-      else if (act === "restart") hooks.restartPlay();
-      else if (act === "menu") setMenu(true);
+      else if (act === "restart") {
+        play("ui-ok");
+        hooks.restartPlay();
+      } else if (act === "menu") setMenu(true);
     }
   }
   if (bHit && paused) {
-    if (menuPage !== "home") showMenuPage("home");
-    else setMenu(false);
+    if (menuPage !== "home") {
+      play("ui-back");
+      showMenuPage("home");
+    } else setMenu(false);
   }
 }
 
@@ -413,31 +456,36 @@ export function bindUi() {
     }
     const menuOpen = paused || crashMode === "overlay";
     if (menuOpen) {
-      const typing = e.target instanceof Element && e.target.closest("input, #ship-picker");
+      const typing = e.target instanceof Element && e.target.closest("input:not([type=range]), #ship-picker");
       if (e.code === "Escape") {
         e.preventDefault();
         if (e.repeat) return;
         if (!paused) setMenu(true);
-        else if (menuPage !== "home") showMenuPage("home");
-        else setMenu(false);
+        else if (menuPage !== "home") {
+          play("ui-back");
+          showMenuPage("home");
+        } else setMenu(false);
         return;
       }
       if (typing) return;
       if (e.code === "ArrowUp" || e.code === "ArrowDown") {
         e.preventDefault();
         menuIx += e.code === "ArrowDown" ? 1 : -1;
-        focusMenu();
+        focusMenu(true);
         return;
       }
       if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
         e.preventDefault();
+        const el = uiButtons()[menuIx];
         if (paused && menuPage === "ship") nudgeYaw(e.code === "ArrowRight" ? 1 : -1);
+        else if (el?.type === "range") nudgeRange(el, e.code === "ArrowRight" ? 1 : -1);
         else if (paused) fireToggle();
         return;
       }
       if (e.code === "Enter" || e.code === "Space") {
         e.preventDefault();
-        if (!e.repeat) uiButtons()[menuIx]?.click();
+        if (e.repeat || uiButtons()[menuIx]?.type === "range") return;
+        uiButtons()[menuIx]?.click();
         return;
       }
       return;
@@ -465,8 +513,19 @@ export function bindUi() {
   });
   crashEl.addEventListener("click", (e) => {
     const act = e.target.closest("button")?.dataset.act;
-    if (act === "restart") hooks.restartPlay();
-    else if (act === "menu") setMenu(true);
+    if (act === "restart") {
+      play("ui-ok");
+      hooks.restartPlay();
+    } else if (act === "menu") setMenu(true);
   });
   splashEl.addEventListener("click", endSplash);
+  function readVol() {
+    inputPrefs.volMaster = Number(document.querySelector("#vol-master").value) / 100;
+    inputPrefs.volSfx = Number(document.querySelector("#vol-sfx").value) / 100;
+    savePrefs();
+    setVolumes(inputPrefs.volMaster, inputPrefs.volSfx);
+    paintAudio();
+  }
+  document.querySelector("#vol-master").addEventListener("input", readVol);
+  document.querySelector("#vol-sfx").addEventListener("input", readVol);
 }

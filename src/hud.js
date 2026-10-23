@@ -49,6 +49,14 @@ export function fmtSpeed(mps) {
   return mps.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, "\u202f") + " m/s";
 }
 
+export function fmtTime(s) {
+  const t = Math.max(0, s);
+  const m = Math.floor(t / 60);
+  const sec = t - m * 60;
+  if (m <= 0) return sec.toFixed(1) + " s";
+  return m + ":" + sec.toFixed(1).padStart(4, "0");
+}
+
 function zoneCue(zone) {
   if (zone === "graze") return ["GRAZE", CRT];
   if (zone === "steep") return ["TOO STEEP", WARN];
@@ -94,6 +102,7 @@ export function selfCheck() {
   assert(fmtDist(847) === "847 m" && fmtDist(1500) === "1.5 km", "dist units");
   assert(fmtDist(210000) === "210 km" && fmtSpeed(40) === "40 m/s", "km and speed");
   assert(fmtSpeed(12345) === "12\u202f345 m/s", "speed groups");
+  assert(fmtTime(12.4) === "12.4 s" && fmtTime(75.2) === "1:15.2", "clock");
   assert(strain(0, 0, 0) === 0 && strain(0.4, 0, 0) === 0.4, "strain danger");
   assert(strain(0, 1, 0) === 0.85 && strain(0.2, 0, 0.9) === 0.9, "strain mix");
   assert(spinMark(0.1) === 0 && spinMark(2.2) === 1 && spinMark(-2.2) === -1, "spin deadzone");
@@ -146,6 +155,14 @@ const ALERT = {
   fontWeight: "400",
   letterSpacing: 3,
   stroke: { color: 0x041208, width: 4 },
+};
+const COUNT = {
+  fontFamily: "ENOCH, Segoe UI, system-ui, sans-serif",
+  fontSize: 72,
+  fill: CRT_LIT,
+  fontWeight: "400",
+  letterSpacing: 6,
+  stroke: { color: 0x041208, width: 6 },
 };
 
 // Open chevron + ticks. No fill. mirror=true is the right (nearest) side.
@@ -309,6 +326,11 @@ export async function createHud() {
 
   const toast = new Text({ text: "", style: TOAST });
   toast.anchor.set(0.5, 1);
+  const clock = new Text({ text: "0.0 s", style: VALUE });
+  clock.anchor.set(0.5, 1);
+  clock.style.fontSize = 18;
+  const count = new Text({ text: "", style: COUNT });
+  count.anchor.set(0.5, 0.5);
 
   const warn = new Container();
   const warnGfx = new Graphics();
@@ -322,7 +344,7 @@ export async function createHud() {
   warn.addChild(warnGfx, warnGhost, warnText);
   warn.visible = false;
 
-  app.stage.addChild(vignette, feel, warn, rail, left, right, radar, toast);
+  app.stage.addChild(vignette, feel, warn, count, rail, left, right, radar, clock, toast);
 
   const GAP = 18;
   const gauge = { cx: 0, cy: 0, r: 0 };
@@ -362,9 +384,11 @@ export async function createHud() {
     left.position.set(radarX - rr - GAP - panelW, clusterY);
     right.position.set(radarX + rr + GAP, clusterY);
     radar.position.set(radarX, radarY);
-    toast.position.set(radarX, clusterY - 36);
+    clock.position.set(radarX, clusterY - 10);
+    toast.position.set(radarX, clusterY - 44);
     toast.style.wordWrapWidth = Math.min(560, w - 40);
     warnText.position.set(w * 0.5, h * 0.38);
+    count.position.set(w * 0.5, h * 0.36);
     const rx = panelW - 18;
     bodyLabel.position.set(rx, 8);
     bodyName.position.set(rx, 24);
@@ -439,15 +463,19 @@ export async function createHud() {
     update(state) {
       layout();
       const splash = Boolean(state.splash);
-      left.visible = right.visible = radar.visible = rail.visible = !splash;
+      left.visible = right.visible = radar.visible = rail.visible = clock.visible = !splash;
       toast.visible = !splash && Boolean(state.toast);
+      count.visible = !splash && Boolean(state.count);
       if (splash) {
         warn.visible = false;
+        count.visible = false;
         vignette.alpha = 0;
         feel.clear();
         app.stage.position.set(0, 0);
         return;
       }
+      clock.text = fmtTime(state.t || 0);
+      count.text = state.count || "";
       const g = Math.max(0, Math.min(1, state.g || 0));
       const danger = state.danger || 0;
       const load = strain(danger, g, state.kick);
@@ -496,7 +524,7 @@ export async function createHud() {
       toast.visible = Boolean(state.toast);
 
       const inWell = state.nearest.zone !== "outside";
-      warn.visible = inWell;
+      warn.visible = inWell && !state.count;
       warnGfx.clear();
       if (inWell) {
         const pulse = 0.35 + 0.45 * Math.abs(Math.sin(state.now / 90));

@@ -174,6 +174,14 @@ function remainingFlip(phase, braking) {
 }
 
 const flight = { t: 0, dist: 0, vmax: 0, boosts: 0, warns: 0, inWarn: false, x: 0, y: 0, z: 0 };
+const GO_COUNT = 3;
+let goT = 0;
+let goFlash = 0;
+
+function armStart() {
+  goT = GO_COUNT;
+  goFlash = 0;
+}
 
 function clearFlight() {
   flight.t = 0;
@@ -530,6 +538,7 @@ const CRASH_BURST = 1;
 let crashT = 0;
 
 function sampleRaceRibbon() {
+  if (goT > 0) return;
   if (!race || race.done || race.i >= race.gates.length) return;
   const to = race.gates[race.i];
   const from = race.i === 0 ? race.spawn : race.gates[race.i - 1];
@@ -538,7 +547,7 @@ function sampleRaceRibbon() {
 }
 
 function noteFlight(dt, hit, nearest, nearestD) {
-  if (race?.done) return;
+  if (goT > 0 || race?.done) return;
   const speed = Math.hypot(ship.vx, ship.vy, ship.vz);
   flight.t += dt;
   flight.dist += Math.hypot(ship.x - flight.x, ship.y - flight.y, ship.z - flight.z);
@@ -613,6 +622,11 @@ function beginFinish() {
 
 function restartPlay() {
   reset();
+  if (race) armStart();
+  else {
+    goT = 0;
+    goFlash = 0;
+  }
   setCrashMode("play");
   crashT = 0;
   crashEl.hidden = true;
@@ -813,8 +827,11 @@ function paintHud(now, nearest, nearestD, danger) {
     panel = { id: gate.id, dist, zone: passHint(ship, gate) };
     raceState = { i: Math.min(race.i + 1, n), n, gateId: gate.id, gate };
   }
-  const raceToast = race && !race.done ? raceState.i + "/" + raceState.n + "  " + flight.t.toFixed(1) + " s" : "";
+  const raceToast = race && !race.done ? raceState.gateId : "";
   const toast = hintUntil || !sawClick ? hintText : raceToast;
+  let count = "";
+  if (goT > 0) count = String(Math.ceil(goT));
+  else if (goFlash > 0) count = "GO";
   hud.update({
     now,
     speed: Math.hypot(ship.vx, ship.vy, ship.vz),
@@ -823,6 +840,8 @@ function paintHud(now, nearest, nearestD, danger) {
     boost,
     nearest: panel,
     toast,
+    t: flight.t,
+    count,
     ship,
     orient,
     planets: radarBodies,
@@ -1013,9 +1032,24 @@ function frame(now) {
   pitch = Math.max(-1, Math.min(1, pitch));
   yaw = Math.max(-1, Math.min(1, yaw));
   roll = Math.max(-1, Math.min(1, roll));
+  const counting = goT > 0;
+  if (counting) {
+    thrust = false;
+    brake = false;
+    boost = false;
+    pitch = 0;
+    yaw = 0;
+    roll = 0;
+    mouse.x = 0;
+    mouse.y = 0;
+    goT = Math.max(0, goT - dt);
+    if (goT === 0) goFlash = 0.45;
+  } else if (goFlash > 0) {
+    goFlash = Math.max(0, goFlash - dt);
+  }
   spin.set(
-    (pitch * TURN + mousePitch) * (invert.pitch ? -1 : 1),
-    (yaw * TURN + mouseYaw) * (invert.yaw ? -1 : 1),
+    (pitch * TURN + (counting ? 0 : mousePitch)) * (invert.pitch ? -1 : 1),
+    (yaw * TURN + (counting ? 0 : mouseYaw)) * (invert.yaw ? -1 : 1),
     roll * TURN * (invert.roll ? -1 : 1)
   );
   if (spin.length() > MAX_SPIN) spin.multiplyScalar(MAX_SPIN / spin.length());
@@ -1031,6 +1065,16 @@ function frame(now) {
   forward.set(0, 0, 1).applyQuaternion(orient);
   up.set(0, 1, 0).applyQuaternion(orient);
   poseHull(dt);
+  if (counting) {
+    const near = nearestBody();
+    chaseCam(0, dt);
+    paintHud(now, near.nearest, near.nearestD, 0);
+    paintDevReadout(dt, near.nearest, near.nearestD);
+    hitchSky();
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+    return;
+  }
   const vx0 = ship.vx;
   const vy0 = ship.vy;
   const vz0 = ship.vz;

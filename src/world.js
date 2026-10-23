@@ -98,9 +98,11 @@ function scalePlanet(p) {
   finishBody(p, 1.25, 2.05);
 }
 
-// Wide of the first world, coasting +Z. Doing nothing misses. Steer in for the ring.
+// Coast +Z for a few seconds. Periapsis sits outside the well, so doing nothing misses.
 export function spawnNear(p) {
-  return { x: p.x - 140 * KM, y: p.y + 8 * KM, z: p.z - 420 * KM, vx: 0, vy: 0, vz: 12 * KM };
+  const vz = 12 * KM;
+  const miss = p.well * 1.45;
+  return { x: p.x - miss, y: p.y + 8 * KM, z: p.z - vz * 10, vx: 0, vy: 0, vz };
 }
 
 function build(rng) {
@@ -340,10 +342,15 @@ export function selfCheck() {
   const a = layout("classic");
   const b = layout("classic");
   assert(a.planets[0].id === "Vela" && a.planets[0].x === 0 && a.planets[0].y === 0 && a.planets[0].z === 0, "vela");
-  assert(a.SPAWN.x === -140 * KM && a.SPAWN.y === 8 * KM && a.SPAWN.z === -420 * KM && a.SPAWN.vz === 12 * KM && a.SPAWN.vx === 0 && a.SPAWN.vy === 0, "spawn");
+  const vela = a.planets[0];
+  const miss = Math.hypot(a.SPAWN.x - vela.x, a.SPAWN.y - vela.y);
+  assert(a.SPAWN.vz === 12 * KM && a.SPAWN.vx === 0 && a.SPAWN.vy === 0, "spawn vel");
+  assert(miss > vela.well && a.SPAWN.z === vela.z - 12 * KM * 10, "spawn miss");
+  const fat = spawnNear({ x: 0, y: 0, z: 0, well: 200 * KM });
+  assert(Math.hypot(fat.x, fat.y) > 200 * KM, "fat miss");
   assert(a.planets[4].id === "Rhea" && a.planets[4].x === -380 * KM * SPACE, "rhea");
   assert(a.moons.length === 4 && a.moons[0].id === "Vela-1" && a.moons[0].x === 42 * KM * PLANET, "vela moon");
-  assert(a.rocks.length === 405 && a.rocks[0].x === 150 * KM * SPACE && a.rocks[0].radius === 0.7 * KM * ROCK, "classic rocks");
+  assert(a.rocks.length === 404 && a.rocks[0].x === 150 * KM * SPACE && a.rocks[0].radius === 0.7 * KM * ROCK, "classic rocks");
   assert(a.rocks.some((r) => r.asteroid) && a.rocks.some((r) => !r.asteroid), "asteroids");
   assert(stamp(a) === stamp(b), "classic stable");
 

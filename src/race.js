@@ -1,6 +1,6 @@
 // One seed, one layout, one gate chain. Graze in order. Score is time plus off-ribbon.
-import { CRUISE } from "./physics.js";
-import { bodies, moons, planets, rocks, SPAWN, spawnNear } from "./world.js";
+import { CRUISE, KM } from "./physics.js";
+import { bodies, moons, planets, rocks, SPAWN } from "./world.js";
 
 const BEST = "slingshotta-race";
 
@@ -134,17 +134,42 @@ export function wrapArc(prev, body, next, steps) {
   return pts;
 }
 
+// Incoming +Z matches the hull nose at reset, so the first hop is the flown path.
+function approachPrev(body) {
+  return { x: body.x, y: body.y, z: body.z - 1e9 };
+}
+
+function approachSpawn(body, next) {
+  const vz = 12 * KM;
+  const back = vz * 10;
+  const enter = wrapArc(approachPrev(body), body, next, 4)[0];
+  const dx = enter.x - body.x;
+  const dy = enter.y - body.y;
+  const dz = enter.z - body.z;
+  const el = Math.hypot(dx, dy, dz) || 1;
+  const miss = body.well * 1.45;
+  return {
+    x: body.x + (dx / el) * miss,
+    y: body.y + (dy / el) * miss,
+    z: body.z + (dz / el) * miss - back,
+    vx: 0,
+    vy: 0,
+    vz,
+  };
+}
+
 export function ribbonWaypoints(c) {
   const pts = [{ x: c.spawn.x, y: c.spawn.y, z: c.spawn.z }];
   const g = c.gates;
   for (let i = 0; i < g.length; i++) {
-    const prev = i === 0 ? c.spawn : g[i - 1];
+    const prev = i === 0 ? approachPrev(g[0]) : g[i - 1];
     const cur = g[i];
     const next =
       i === g.length - 1
         ? { x: cur.x * 2 - prev.x, y: cur.y * 2 - prev.y, z: cur.z * 2 - prev.z }
         : g[i + 1];
     const arc = wrapArc(prev, cur, next, 8);
+    if (i === 0) pts.push({ x: c.spawn.x, y: c.spawn.y, z: arc[0].z });
     for (const p of arc) pts.push(p);
   }
   return pts;
@@ -200,7 +225,8 @@ export function course(world) {
     gates.push(best);
     used.add(best.id);
   }
-  return { gates, spawn: spawnNear(first) };
+  const next = gates[1] || { x: first.x, y: first.y, z: first.z + 1 };
+  return { gates, spawn: approachSpawn(first, next) };
 }
 
 export function raceScore(t, ribbon) {
@@ -272,8 +298,16 @@ export function selfCheck() {
   assert(around.every((p) => p.x > -0.01), "outside flyby");
   const buried = nudgeOffBodies({ x: c1.gates[0].x, y: c1.gates[0].y, z: c1.gates[0].z }, [c1.gates[0]]);
   assert(dist3(buried, c1.gates[0]) >= c1.gates[0].radius * 1.14, "nudge");
-  const hopA = wrapArc(c1.spawn, c1.gates[0], c1.gates[1], 6);
+  const hopA = wrapArc(approachPrev(c1.gates[0]), c1.gates[0], c1.gates[1], 6);
   const hopB = wrapArc(c1.gates[0], c1.gates[1], c1.gates[2] || c1.gates[0], 6);
+  const enter = hopA[0];
+  const g0 = c1.gates[0];
+  const ex = enter.x - g0.x;
+  const ey = enter.y - g0.y;
+  const sx = c1.spawn.x - g0.x;
+  const sy = c1.spawn.y - g0.y;
+  assert(Math.abs(sx * ey - sy * ex) < 1e-3 * (Math.abs(sx * ex + sy * ey) + 1), "spawn on line");
+  assert(Math.hypot(sx, sy) > g0.well && c1.spawn.vz === 12 * KM && c1.spawn.vx === 0, "spawn along nose");
   const mid = {
     x: (hopA[hopA.length - 1].x + hopB[0].x) * 0.5,
     y: (hopA[hopA.length - 1].y + hopB[0].y) * 0.5,

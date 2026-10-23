@@ -14,7 +14,7 @@ import {
   savePrefs,
   toggleGyro,
 } from "./input.js";
-import { fmtDist, fmtSpeed } from "./hud.js";
+import { fmtDist, fmtSpeed, fmtTime } from "./hud.js";
 import { choosePalette, chooseSlot, hideShip, nudgeYaw, showShip } from "./shipview.js";
 
 export const menu = document.querySelector("#menu");
@@ -354,13 +354,6 @@ export function pollUi() {
     if (menuPage !== "home") showMenuPage("home");
     else setMenu(false);
   }
-}
-
-function fmtTime(s) {
-  if (s < 60) return s.toFixed(1) + " s";
-  const m = Math.floor(s / 60);
-  const sec = Math.floor(s % 60);
-  return m + ":" + String(sec).padStart(2, "0");
 }
 
 export function paintCrashStats(flight) {

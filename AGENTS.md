@@ -26,7 +26,7 @@ Relative URLs only, so GitHub Pages project sites (`/slingshotta/`) work.
 Any static server, then open the root. `file://` will not load the module.
 Meat Bag hosts `http://localhost:8000` during development, Clanker doesn't need to host one, because Meat Bag is a real G.
 
-World stays low-spec: pixel ratio 1, antialias off, no postprocessing. Pixi HUD may use `min(2, devicePixelRatio)`. Layout must fit 1440x900 with no page scroll. HUD sits on the bottom center: speed left of the radar with a circular G ball beside it, nearest body right of it. Chrome is CRT phosphor green. GRAZE / TOO STEEP / TOO LOW also sit as a center alert while inside a well. High G reuses the inner-band shake and a Pixi tunnel vignette. The HUD glitches under that strain, draws light pitch/yaw/roll ticks while turning, and kicks with the camera when a burn starts. The sun and nebula live on a camera-locked sky, not as bodies in the system.
+World stays low-spec: pixel ratio 1, antialias off, no postprocessing. Pixi HUD may use `min(2, devicePixelRatio)`. Layout must fit 1440x900 with no page scroll. HUD sits on the bottom center: speed left of the radar with a circular G ball beside it, nearest body right of it. A clock sits above the radar. A race starts on 3-2-1-GO, engines locked until GO. Free roam does not count down. Chrome is CRT phosphor green. GRAZE / TOO STEEP / TOO LOW also sit as a center alert while inside a well. High G reuses the inner-band shake and a Pixi tunnel vignette. The HUD glitches under that strain, draws light pitch/yaw/roll ticks while turning, and kicks with the camera when a burn starts. The sun and nebula live on a camera-locked sky, not as bodies in the system.
 
 World units are metres. `KM` in `src/physics.js` is the feel-preserving arcade clock. Planets are large vs the racer (a Vela graze is several seconds at cruise) and far apart. HUD shows m/s and metres, kilometres past 1000 m.
 
@@ -39,8 +39,8 @@ Arcade flight. The ship flies where the nose points. A faint line trails the flo
 - Gamepad: either stick aims, triggers thrust and brake, B boosts, bumpers roll. Start opens the menu. D-pad or left stick moves, A selects, B backs. Right stick looks around Setara on the Ship page.
 - Touch overlays (auto on coarse pointers): thrust, brake, boost, roll, look disc, and a Menu button. Portrait and landscape both work. Settings can force overlays on or off.
 - Gyro (off until granted in Settings): tilt aims pitch and yaw. Engines stay on the overlays.
-- Enter, Esc, Start, or the Menu overlay pauses (Play first, then Ship, Settings, Controls, How to play). Esc on the home list resumes. Play is Free roam, Daily, and Weekly. Free roam and Weekly use this week's seed; Daily uses today's. Typed seeds stay on the Developer page. Arrows or D-pad move (hold repeats), Enter selects, Esc backs out, left/right cycles a toggle. The last home row is remembered. How to play is the briefing. Controls lists bindings. Settings holds invert, overlays, and gyro. Ship is Setara: a preview, part specs, and three paints (vessels, pods, truss).
-- Splash first: ship coasts, camera orbits it, any button opens Play (Free roam, Daily, Weekly). Menu Exit returns to splash. HUD drive reads RCS pitch/yaw/roll while jets fire.
+- Enter, Esc, Start, or the Menu overlay pauses (Play first, then Ship, Settings, Controls, How to play). Esc on the home list resumes. Play is Free roam, Daily Race, and Weekly Race. Free roam and Weekly Race use this week's seed; Daily Race uses today's. Typed seeds stay on the Developer page. Arrows or D-pad move (hold repeats), Enter selects, Esc backs out, left/right cycles a toggle. The last home row is remembered. How to play is the briefing. Controls lists bindings. Settings holds invert, overlays, and gyro. Ship is Setara: a preview, part specs, and three paints (vessels, pods, truss).
+- Splash first: ship coasts, camera orbits it, any button opens Play (Free roam, Daily Race, Weekly Race). Menu Exit returns to splash. HUD drive reads RCS pitch/yaw/roll while jets fire.
 
 Keep a file under ~500 lines. Split at a named concern before it grows past that.
 
@@ -60,5 +60,5 @@ Keep a file under ~500 lines. Split at a named concern before it grows past that
 - `src/sky.js` — camera-locked nebula/sun, stars, planet canvases.
 - `src/fx.js` — flown-path trail from the bell, RCS streaks, ballistic ghost line, crash burst.
 - `src/input.js` — prefs, keys, mouse, pads, gyro. Does not import UI.
-- `src/ui.js` — splash, pause pages, crash overlay. Play picks Free roam / Daily / Weekly. Settings toggles Developer mode. The Developer page loads an 8-character seed and can show a corner readout.
+- `src/ui.js` — splash, pause pages, crash overlay. Play picks Free roam / Daily Race / Weekly Race. Settings toggles Developer mode. The Developer page loads an 8-character seed and can show a corner readout.
 - `src/main.js` — renderer, wells, camera, flight loop.

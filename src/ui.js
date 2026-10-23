@@ -37,6 +37,7 @@ const PAGE_TITLE = {
   controls: "Controls",
   settings: "Settings",
   ship: "Ship",
+  play: "Play",
   dev: "Developer",
 };
 const TOGGLE_ACT = { invert: 1, overlays: 1, gyro: 1, developer: 1, details: 1 };
@@ -90,15 +91,24 @@ function paintDetails() {
   document.querySelector("[data-act=details]").textContent = "Details: " + (inputPrefs.details ? "on" : "off");
 }
 
+function paintPlay() {
+  const page = document.querySelector("#menu-play");
+  const racing = inputPrefs.playMode === "race";
+  page.querySelector("[data-act=free-roam]").classList.toggle("picked", !racing);
+  page.querySelector("[data-act=race-daily]").classList.toggle("picked", racing && inputPrefs.raceKind === "daily");
+  page.querySelector("[data-act=race-weekly]").classList.toggle("picked", racing && inputPrefs.raceKind === "weekly");
+}
+
 function showMenuPage(name) {
   menuPage = name;
-  for (const id of ["home", "how", "controls", "settings", "ship", "dev"]) {
+  for (const id of ["home", "how", "controls", "settings", "ship", "play", "dev"]) {
     document.querySelector("#menu-" + id).hidden = id !== name;
   }
   document.querySelector("#menu-title").textContent = PAGE_TITLE[name];
   menu.classList.toggle("wide", name === "ship");
   paintDevEntry();
   if (name === "settings") paintSettings();
+  if (name === "play") paintPlay();
   if (name === "dev") {
     paintDetails();
     document.querySelector("#dev-seed").value = inputPrefs.seed;
@@ -163,7 +173,7 @@ function runMenu(act) {
     paintSettings();
     paintDevEntry();
     hooks.syncDevReadout();
-    hooks.applyWorld(inputPrefs.developer ? inputPrefs.seed : "classic");
+    if (!inputPrefs.developer && inputPrefs.playMode !== "race") hooks.setPlayMode("free");
   } else if (act === "details") {
     inputPrefs.details = !inputPrefs.details;
     savePrefs();
@@ -171,6 +181,12 @@ function runMenu(act) {
     hooks.syncDevReadout();
   } else if (act === "load-seed") {
     if (hooks.loadSeed(document.querySelector("#dev-seed").value)) setMenu(false);
+  } else if (act === "free-roam") {
+    if (hooks.setPlayMode("free")) setMenu(false);
+  } else if (act === "race-daily") {
+    if (hooks.setPlayMode("race", "daily")) setMenu(false);
+  } else if (act === "race-weekly") {
+    if (hooks.setPlayMode("race", "weekly")) setMenu(false);
   } else if (act === "palette") {
     choosePalette(menuButtons()[menuIx]?.dataset.palette);
   } else if (act === "slot") {
@@ -331,6 +347,7 @@ function fmtTime(s) {
 }
 
 export function paintCrashStats(flight) {
+  document.querySelector("#crash h1").textContent = "Pilot crashed";
   crashStatsEl.innerHTML =
     "<li>Flight time <span>" +
     fmtTime(flight.t) +
@@ -346,6 +363,23 @@ export function paintCrashStats(flight) {
     "</span></li>" +
     "<li>Distance <span>" +
     fmtDist(flight.dist) +
+    "</span></li>";
+}
+
+export function paintFinishStats(run, best) {
+  document.querySelector("#crash h1").textContent = "Pilot finished";
+  crashStatsEl.innerHTML =
+    "<li>Time <span>" +
+    fmtTime(run.t) +
+    "</span></li>" +
+    "<li>Ribbon miss <span>" +
+    fmtDist(run.ribbon) +
+    "</span></li>" +
+    "<li>Top speed <span>" +
+    fmtSpeed(run.vmax) +
+    "</span></li>" +
+    "<li>Best <span>" +
+    (best ? fmtTime(best.t) : fmtTime(run.t)) +
     "</span></li>";
 }
 

@@ -5,13 +5,25 @@ import { selfCheck as tiltCheck } from "./tilt.js";
 import {
   SPAWN as classicSpawn,
   bodies as classicBodies,
+  dailySeed,
   layout,
   moons as classicMoons,
   planets as classicPlanets,
   radarBodies as classicRadar,
   rocks as classicRocks,
   selfCheck as worldCheck,
+  weeklySeed,
 } from "./world.js";
+import {
+  course,
+  nudgeOffBodies,
+  pointSegDist,
+  raceScore,
+  recordBest,
+  ribbonMean,
+  ribbonWaypoints,
+  selfCheck as raceCheck,
+} from "./race.js";
 import { createRacer } from "./ship.js";
 import { createSky } from "./sky.js";
 import { createFx } from "./fx.js";
@@ -36,6 +48,7 @@ import {
   crashMode,
   endSplash,
   paintCrashStats,
+  paintFinishStats,
   paused,
   playHint,
   pollUi,
@@ -52,6 +65,7 @@ selfCheck();
 hudCheck();
 tiltCheck();
 worldCheck();
+raceCheck();
 
 const classicWorld = {
   bodies: classicBodies,
@@ -66,12 +80,29 @@ function worldFor(seed) {
   return seed === "classic" ? classicWorld : layout(seed);
 }
 
-let activeSeed = inputPrefs.developer ? inputPrefs.seed : "classic";
+function worldSeedForPlay() {
+  if (inputPrefs.playMode === "race" && inputPrefs.raceKind === "daily") return dailySeed();
+  return weeklySeed();
+}
+
+function makeRace(c, seed) {
+  return { gates: c.gates, spawn: c.spawn, i: 0, sum: 0, n: 0, done: false, seed };
+}
+
+let activeSeed = worldSeedForPlay();
 let world = worldFor(activeSeed);
 let bodies = world.bodies;
 let radarBodies = world.radarBodies;
 let SPAWN = world.SPAWN;
 let home = world.planets[0];
+let race = null;
+{
+  if (inputPrefs.playMode === "race") {
+    const c = course(world);
+    race = makeRace(c, activeSeed);
+    SPAWN = c.spawn;
+  }
+}
 
 const TURN = 2.2;
 const MAX_SPIN = 2.2;
@@ -173,6 +204,12 @@ function reset() {
   gLoad = 0;
   burnKick = 0;
   wasBurn = false;
+  if (race) {
+    race.i = 0;
+    race.sum = 0;
+    race.n = 0;
+    race.done = false;
+  }
   clearFlight();
 }
 
@@ -430,10 +467,55 @@ const { ghostPos, ghostGeo, ghostLine, clearTrail, sampleTrail, clearDebris, spa
 });
 clearTrail();
 
+const ribbonMat = new THREE.MeshBasicMaterial({
+  color: 0xe070ff,
+  transparent: true,
+  opacity: 0.72,
+  depthWrite: true,
+  side: THREE.DoubleSide,
+});
+let ribbonMesh = null;
+
+function setRibbon(c) {
+  if (ribbonMesh) {
+    scene.remove(ribbonMesh);
+    ribbonMesh.geometry.dispose();
+    ribbonMesh = null;
+  }
+  if (!c) return;
+  const way = ribbonWaypoints(c).map((p) => {
+    const n = nudgeOffBodies(p, bodies);
+    return new THREE.Vector3(n.x, n.y, n.z);
+  });
+  if (way.length < 2) return;
+  const curve = new THREE.CatmullRomCurve3(way, false, "chordal", 0);
+  const sampled = curve.getPoints(Math.max(48, way.length * 8)).map((p) => {
+    const n = nudgeOffBodies(p, bodies);
+    p.set(n.x, n.y, n.z);
+    return p;
+  });
+  const smooth = new THREE.CatmullRomCurve3(sampled, false, "chordal", 0);
+  const geo = new THREE.TubeGeometry(smooth, sampled.length, 0.55 * KM, 8, false);
+  ribbonMesh = new THREE.Mesh(geo, ribbonMat);
+  ribbonMesh.frustumCulled = false;
+  scene.add(ribbonMesh);
+}
+
+if (race) setRibbon(race);
+
 const CRASH_BURST = 1;
 let crashT = 0;
 
+function sampleRaceRibbon() {
+  if (!race || race.done || race.i >= race.gates.length) return;
+  const to = race.gates[race.i];
+  const from = race.i === 0 ? race.spawn : race.gates[race.i - 1];
+  race.sum += pointSegDist(ship.x, ship.y, ship.z, from.x, from.y, from.z, to.x, to.y, to.z);
+  race.n += 1;
+}
+
 function noteFlight(dt, hit, nearest, nearestD) {
+  if (race?.done) return;
   const speed = Math.hypot(ship.vx, ship.vy, ship.vz);
   flight.t += dt;
   flight.dist += Math.hypot(ship.x - flight.x, ship.y - flight.y, ship.z - flight.z);
@@ -482,6 +564,21 @@ function beginCrash(bodyId) {
   spawnBurst(wx, wy, wz, nx, ny, nz, ship.vx, ship.vy, ship.vz);
 }
 
+function beginFinish() {
+  race.done = true;
+  const ribbon = ribbonMean(race.sum, race.n);
+  const run = { t: flight.t, ribbon, vmax: flight.vmax, score: raceScore(flight.t, ribbon) };
+  const best = recordBest(race.seed, run);
+  paintFinishStats(run, best);
+  setCrashMode("overlay");
+  showCrashUi();
+  document.exitPointerLock?.();
+  clearLook();
+  clearPadHold();
+  syncPads();
+  ghostLine.visible = false;
+}
+
 function restartPlay() {
   reset();
   setCrashMode("play");
@@ -494,9 +591,24 @@ function restartPlay() {
   syncPads();
 }
 
+function bindRace(next) {
+  if (inputPrefs.playMode !== "race") {
+    race = null;
+    SPAWN = next.SPAWN;
+    setRibbon(null);
+    return;
+  }
+  const c = course(next);
+  race = makeRace(c, activeSeed);
+  SPAWN = c.spawn;
+  setRibbon(c);
+}
+
 function applyWorld(seed) {
   activeSeed = seed;
-  mountWorld(worldFor(seed));
+  const next = worldFor(seed);
+  mountWorld(next);
+  bindRace(next);
   if (splash) poseSplash();
   else restartPlay();
 }
@@ -507,6 +619,14 @@ function loadSeed(raw) {
   inputPrefs.seed = seed;
   savePrefs();
   applyWorld(seed);
+  return true;
+}
+
+function setPlayMode(mode, kind) {
+  inputPrefs.playMode = mode;
+  if (kind) inputPrefs.raceKind = kind;
+  savePrefs();
+  applyWorld(worldSeedForPlay());
   return true;
 }
 
@@ -539,6 +659,7 @@ setUiHooks({
   poseSplash,
   loadSeed,
   applyWorld,
+  setPlayMode,
   syncDevReadout,
   hideGhost() {
     ghostLine.visible = false;
@@ -653,14 +774,25 @@ function paintHud(now, nearest, nearestD, danger) {
     hintText = playHint();
     hintUntil = 0;
   }
-  const toast = hintUntil || !sawClick ? hintText : "";
+  let panel = { id: nearest.id, dist: nearestD, zone: passHint(ship, nearest) };
+  let raceState = null;
+  if (race) {
+    const n = race.gates.length;
+    const ix = Math.min(race.i, n - 1);
+    const gate = race.gates[ix];
+    const dist = Math.hypot(ship.x - gate.x, ship.y - gate.y, ship.z - gate.z);
+    panel = { id: gate.id, dist, zone: passHint(ship, gate) };
+    raceState = { i: Math.min(race.i + 1, n), n, gateId: gate.id, gate };
+  }
+  const raceToast = race && !race.done ? raceState.i + "/" + raceState.n + "  " + flight.t.toFixed(1) + " s" : "";
+  const toast = hintUntil || !sawClick ? hintText : raceToast;
   hud.update({
     now,
     speed: Math.hypot(ship.vx, ship.vy, ship.vz),
     thrust,
     brake,
     boost,
-    nearest: { id: nearest.id, dist: nearestD, zone: passHint(ship, nearest) },
+    nearest: panel,
     toast,
     ship,
     orient,
@@ -672,6 +804,7 @@ function paintHud(now, nearest, nearestD, danger) {
     spin: paused || splash ? { x: 0, y: 0, z: 0 } : spin,
     rcs: rcsLabel(),
     splash,
+    race: raceState,
   });
 }
 
@@ -732,6 +865,7 @@ function chaseCam(danger, dt) {
 function frame(now) {
   pollUi();
   if (splash) {
+    if (ribbonMesh) ribbonMesh.visible = false;
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     forward.set(0, 0, 1).applyQuaternion(orient);
@@ -759,6 +893,7 @@ function frame(now) {
     return;
   }
   if (paused) {
+    if (ribbonMesh) ribbonMesh.visible = Boolean(race);
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     const near = nearestBody();
@@ -871,6 +1006,7 @@ function frame(now) {
   const hit = step(ship, bodies, pass, dt);
   const nearHit = nearestBody();
   noteFlight(dt, hit, nearHit.nearest, nearHit.nearestD);
+  sampleRaceRibbon();
   if ((thrust || boost) && !wasBurn) burnKick = boost ? 0.55 : 0.32;
   wasBurn = thrust || boost;
   if (hit.event === "crash") {
@@ -878,6 +1014,11 @@ function frame(now) {
   } else if (hit.event === "boost") {
     say("Boost off " + hit.bodyId + ".");
     burnKick = Math.max(burnKick, 0.72);
+    if (race && !race.done && hit.bodyId === race.gates[race.i].id) {
+      race.i += 1;
+      if (race.i >= race.gates.length) beginFinish();
+      else say("Gate " + (race.i + 1) + "/" + race.gates.length + "  " + race.gates[race.i].id);
+    }
   }
   burnKick *= Math.exp(-10 * dt);
 
@@ -920,6 +1061,7 @@ function frame(now) {
   for (const jet of rcsJets) jet.visible = jet.userData.torque.dot(spin) > RCS_DZ;
   sampleTrail(thrust || boost || bellFwd > 0.04);
   paintWells(dt);
+  if (ribbonMesh) ribbonMesh.visible = Boolean(race);
 
   const speed = Math.hypot(ship.vx, ship.vy, ship.vz);
   if (speed > 0.35 * KM) {

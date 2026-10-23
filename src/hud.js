@@ -484,6 +484,8 @@ export async function createHud() {
       driveVal.text = drive;
       driveVal.style.fill = driveFill;
 
+      const racing = Boolean(state.race);
+      bodyLabel.text = racing ? "GATE " + state.race.i + "/" + state.race.n : "NEAREST";
       bodyName.text = state.nearest.id;
       bodyDist.text = fmtDist(state.nearest.dist);
       const [zoneText, zoneFill] = zoneCue(state.nearest.zone);
@@ -533,7 +535,10 @@ export async function createHud() {
       radarBlips.lineTo(Math.cos(ang) * RADAR_R, Math.sin(ang) * RADAR_R * TILT);
       radarBlips.stroke({ width: 1.5, color: CRT, alpha: 0.35 });
 
-      for (const p of state.planets) {
+      const gateId = state.race?.gateId;
+      const radarList = state.planets.slice();
+      if (state.race?.gate && !radarList.some((p) => p.id === gateId)) radarList.push(state.race.gate);
+      for (const p of radarList) {
         const hit = projectRadar(
           { x: p.x - state.ship.x, y: p.y - state.ship.y, z: p.z - state.ship.z },
           state.orient
@@ -541,13 +546,15 @@ export async function createHud() {
         const px = hit.x * RADAR_R;
         const py = -hit.y * RADAR_R * TILT;
         const ey = py - hit.elev * STEM;
+        const mark = p.id === gateId;
+        const fill = p.color || CRT;
         radarBlips.moveTo(px, py);
         radarBlips.lineTo(px, ey);
-        radarBlips.stroke({ width: 1.2, color: p.color, alpha: 0.7 });
-        radarBlips.circle(px, ey, p.moon ? 3 : 4.5);
-        radarBlips.fill({ color: p.color, alpha: 0.95 });
+        radarBlips.stroke({ width: mark ? 2 : 1.2, color: fill, alpha: 0.7 });
+        radarBlips.circle(px, ey, mark ? 7 : p.moon ? 3 : 4.5);
+        radarBlips.fill({ color: fill, alpha: 0.95 });
         radarBlips.circle(px, py, 2);
-        radarBlips.fill({ color: p.color, alpha: 0.5 });
+        radarBlips.fill({ color: fill, alpha: 0.5 });
       }
     },
   };

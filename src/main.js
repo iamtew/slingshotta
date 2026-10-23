@@ -55,6 +55,7 @@ import {
   setCrashMode,
   setMenu,
   setUiHooks,
+  waitingPlay,
   showCrashUi,
   splash,
   spinSplash,
@@ -474,12 +475,18 @@ const ribbonMat = new THREE.MeshBasicMaterial({
   depthWrite: true,
   side: THREE.DoubleSide,
 });
+const chevGeo = new THREE.ConeGeometry(0.95 * KM, 2.4 * KM, 3);
+const chevMat = new THREE.MeshBasicMaterial({ color: 0xffe8ff, depthWrite: true });
+const chevDummy = new THREE.Object3D();
+const chevAxis = new THREE.Vector3(0, 1, 0);
 let ribbonMesh = null;
 
 function setRibbon(c) {
   if (ribbonMesh) {
     scene.remove(ribbonMesh);
-    ribbonMesh.geometry.dispose();
+    ribbonMesh.traverse((obj) => {
+      if (obj.geometry && obj.geometry !== chevGeo) obj.geometry.dispose();
+    });
     ribbonMesh = null;
   }
   if (!c) return;
@@ -488,15 +495,31 @@ function setRibbon(c) {
     return new THREE.Vector3(n.x, n.y, n.z);
   });
   if (way.length < 2) return;
-  const curve = new THREE.CatmullRomCurve3(way, false, "chordal", 0);
-  const sampled = curve.getPoints(Math.max(48, way.length * 8)).map((p) => {
-    const n = nudgeOffBodies(p, bodies);
-    p.set(n.x, n.y, n.z);
-    return p;
-  });
-  const smooth = new THREE.CatmullRomCurve3(sampled, false, "chordal", 0);
-  const geo = new THREE.TubeGeometry(smooth, sampled.length, 0.55 * KM, 8, false);
-  ribbonMesh = new THREE.Mesh(geo, ribbonMat);
+  const path = new THREE.CurvePath();
+  for (let i = 1; i < way.length; i++) {
+    if (way[i].distanceToSquared(way[i - 1]) < 1) continue;
+    path.add(new THREE.LineCurve3(way[i - 1], way[i]));
+  }
+  if (!path.curves.length) return;
+  const span = path.getLength();
+  const tubular = Math.max(32, Math.floor(span / (4 * KM)));
+  const geo = new THREE.TubeGeometry(path, tubular, 0.55 * KM, 8, false);
+  const tube = new THREE.Mesh(geo, ribbonMat);
+  const marks = Math.max(8, Math.floor(span / (16 * KM)));
+  const chevs = new THREE.InstancedMesh(chevGeo, chevMat, marks);
+  for (let i = 0; i < marks; i++) {
+    const t = (i + 0.5) / marks;
+    const tan = path.getTangentAt(t);
+    if (tan.lengthSq() < 1e-8) continue;
+    chevDummy.position.copy(path.getPointAt(t));
+    chevDummy.quaternion.setFromUnitVectors(chevAxis, tan.normalize());
+    chevDummy.updateMatrix();
+    chevs.setMatrixAt(i, chevDummy.matrix);
+  }
+  chevs.instanceMatrix.needsUpdate = true;
+  chevs.frustumCulled = false;
+  ribbonMesh = new THREE.Group();
+  ribbonMesh.add(tube, chevs);
   ribbonMesh.frustumCulled = false;
   scene.add(ribbonMesh);
 }
@@ -567,7 +590,16 @@ function beginCrash(bodyId) {
 function beginFinish() {
   race.done = true;
   const ribbon = ribbonMean(race.sum, race.n);
-  const run = { t: flight.t, ribbon, vmax: flight.vmax, score: raceScore(flight.t, ribbon) };
+  const run = {
+    t: flight.t,
+    ribbon,
+    vmax: flight.vmax,
+    dist: flight.dist,
+    boosts: flight.boosts,
+    cleared: race.gates.length,
+    total: race.gates.length,
+    score: raceScore(flight.t, ribbon),
+  };
   const best = recordBest(race.seed, run);
   paintFinishStats(run, best);
   setCrashMode("overlay");
@@ -666,9 +698,6 @@ setUiHooks({
   },
   onLeaveSplash() {
     sawClick = true;
-    reset();
-    clearTrail();
-    ghostLine.visible = false;
   },
   onKey(e) {
     keys.add(e.code);
@@ -803,7 +832,7 @@ function paintHud(now, nearest, nearestD, danger) {
     kick: paused || splash ? 0 : burnKick,
     spin: paused || splash ? { x: 0, y: 0, z: 0 } : spin,
     rcs: rcsLabel(),
-    splash,
+    splash: splash || waitingPlay,
     race: raceState,
   });
 }
@@ -862,28 +891,32 @@ function chaseCam(danger, dt) {
   );
 }
 
+function orbitSplash(dt) {
+  if (ribbonMesh) ribbonMesh.visible = false;
+  forward.set(0, 0, 1).applyQuaternion(orient);
+  engineArcade(ship, forward.x, forward.y, forward.z, dt, false, false, false);
+  step(ship, bodies, pass, dt);
+  craft.position.set(ship.x, ship.y, ship.z);
+  craft.quaternion.copy(orient);
+  plume.visible = false;
+  sampleTrail(false);
+  const ang = spinSplash(dt);
+  const dist = 5 * KM;
+  camera.position.set(
+    ship.x + Math.cos(ang) * dist,
+    ship.y + 1.6 * KM,
+    ship.z + Math.sin(ang) * dist
+  );
+  camera.up.set(0, 1, 0);
+  camera.lookAt(ship.x, ship.y, ship.z);
+}
+
 function frame(now) {
   pollUi();
-  if (splash) {
-    if (ribbonMesh) ribbonMesh.visible = false;
+  if (splash || (paused && waitingPlay)) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    forward.set(0, 0, 1).applyQuaternion(orient);
-    engineArcade(ship, forward.x, forward.y, forward.z, dt, false, false, false);
-    step(ship, bodies, pass, dt);
-    craft.position.set(ship.x, ship.y, ship.z);
-    craft.quaternion.copy(orient);
-    plume.visible = false;
-    sampleTrail(false);
-    const ang = spinSplash(dt);
-    const dist = 5 * KM;
-    camera.position.set(
-      ship.x + Math.cos(ang) * dist,
-      ship.y + 1.6 * KM,
-      ship.z + Math.sin(ang) * dist
-    );
-    camera.up.set(0, 1, 0);
-    camera.lookAt(ship.x, ship.y, ship.z);
+    orbitSplash(dt);
     const near = nearestBody();
     paintHud(now, near.nearest, near.nearestD, 0);
     paintDevReadout(dt, near.nearest, near.nearestD);

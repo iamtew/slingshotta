@@ -40,7 +40,7 @@ Arcade flight. The ship flies where the nose points. A faint line trails the flo
 - Touch overlays (auto on coarse pointers): thrust, brake, boost, roll, look disc, and a Menu button. Portrait and landscape both work. Settings can force overlays on or off.
 - Gyro (off until granted in Settings): tilt aims pitch and yaw. Engines stay on the overlays.
 - Enter, Esc, Start, or the Menu overlay pauses (Play first, then Ship, Settings, Controls, How to play). Esc on the home list resumes. Play is Free roam, Daily, and Weekly. Free roam and Weekly use this week's seed; Daily uses today's. Typed seeds stay on the Developer page. Arrows or D-pad move (hold repeats), Enter selects, Esc backs out, left/right cycles a toggle. The last home row is remembered. How to play is the briefing. Controls lists bindings. Settings holds invert, overlays, and gyro. Ship is Setara: a preview, part specs, and three paints (vessels, pods, truss).
-- Splash first: ship coasts, camera orbits it, any button continues. Menu Exit returns to splash. HUD drive reads RCS pitch/yaw/roll while jets fire.
+- Splash first: ship coasts, camera orbits it, any button opens Play (Free roam, Daily, Weekly). Menu Exit returns to splash. HUD drive reads RCS pitch/yaw/roll while jets fire.
 
 Keep a file under ~500 lines. Split at a named concern before it grows past that.
 

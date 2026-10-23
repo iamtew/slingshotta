@@ -24,6 +24,7 @@ export const splashEl = document.querySelector("#splash");
 
 export let paused = false;
 export let splash = true;
+export let waitingPlay = true;
 export let splashAng = 0;
 export let crashMode = "play";
 let menuPage = "home";
@@ -180,12 +181,16 @@ function runMenu(act) {
     paintDetails();
     hooks.syncDevReadout();
   } else if (act === "load-seed") {
+    waitingPlay = false;
     if (hooks.loadSeed(document.querySelector("#dev-seed").value)) setMenu(false);
   } else if (act === "free-roam") {
+    waitingPlay = false;
     if (hooks.setPlayMode("free")) setMenu(false);
   } else if (act === "race-daily") {
+    waitingPlay = false;
     if (hooks.setPlayMode("race", "daily")) setMenu(false);
   } else if (act === "race-weekly") {
+    waitingPlay = false;
     if (hooks.setPlayMode("race", "weekly")) setMenu(false);
   } else if (act === "palette") {
     choosePalette(menuButtons()[menuIx]?.dataset.palette);
@@ -197,6 +202,7 @@ function runMenu(act) {
 }
 
 export function enterSplash() {
+  waitingPlay = true;
   hooks.restartPlay();
   hooks.poseSplash();
   splash = true;
@@ -209,7 +215,9 @@ export function endSplash() {
   if (!splash) return;
   splash = false;
   splashEl.hidden = true;
-  hooks.onLeaveSplash();
+  waitingPlay = true;
+  setMenu(true);
+  showMenuPage("play");
   syncPads();
 }
 
@@ -219,6 +227,15 @@ export function spinSplash(dt) {
 }
 
 export function setMenu(open) {
+  if (!open && waitingPlay && !splash) {
+    paused = true;
+    menu.hidden = false;
+    showMenuPage("play");
+    clearLook();
+    clearPadHold();
+    syncPads();
+    return;
+  }
   paused = open;
   menu.hidden = !open;
   clearLook();
@@ -369,6 +386,11 @@ export function paintCrashStats(flight) {
 export function paintFinishStats(run, best) {
   document.querySelector("#crash h1").textContent = "Pilot finished";
   crashStatsEl.innerHTML =
+    "<li>Bodies <span>" +
+    run.cleared +
+    " / " +
+    run.total +
+    "</span></li>" +
     "<li>Time <span>" +
     fmtTime(run.t) +
     "</span></li>" +
@@ -377,6 +399,12 @@ export function paintFinishStats(run, best) {
     "</span></li>" +
     "<li>Top speed <span>" +
     fmtSpeed(run.vmax) +
+    "</span></li>" +
+    "<li>Distance <span>" +
+    fmtDist(run.dist) +
+    "</span></li>" +
+    "<li>Gravity boosts <span>" +
+    run.boosts +
     "</span></li>" +
     "<li>Best <span>" +
     (best ? fmtTime(best.t) : fmtTime(run.t)) +

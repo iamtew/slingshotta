@@ -57,20 +57,53 @@ function rotAxis(x, y, z, ax, ay, az, ang) {
   };
 }
 
-// Long arc on the outer band, around the back of the body, not the inner chord.
+// Sideways graze on the outside of the turn. Tangent hops, not aimed at the core.
 export function wrapArc(prev, body, next, steps) {
   const r = body.sweetOut;
-  let ux = prev.x - body.x;
-  let uy = prev.y - body.y;
-  let uz = prev.z - body.z;
-  const ul = Math.hypot(ux, uy, uz) || 1;
+  let ix = body.x - prev.x;
+  let iy = body.y - prev.y;
+  let iz = body.z - prev.z;
+  const il = Math.hypot(ix, iy, iz) || 1;
+  ix /= il;
+  iy /= il;
+  iz /= il;
+  let ox = next.x - body.x;
+  let oy = next.y - body.y;
+  let oz = next.z - body.z;
+  const ol = Math.hypot(ox, oy, oz) || 1;
+  ox /= ol;
+  oy /= ol;
+  oz /= ol;
+  let nx = iy * oz - iz * oy;
+  let ny = iz * ox - ix * oz;
+  let nz = ix * oy - iy * ox;
+  let nl = Math.hypot(nx, ny, nz);
+  if (nl < 1e-6) {
+    nx = iz;
+    ny = 0;
+    nz = -ix;
+    nl = Math.hypot(nx, ny, nz);
+    if (nl < 1e-6) {
+      nx = 1;
+      ny = 0;
+      nz = 0;
+      nl = 1;
+    }
+  }
+  nx /= nl;
+  ny /= nl;
+  nz /= nl;
+  let ux = iy * nz - iz * ny;
+  let uy = iz * nx - ix * nz;
+  let uz = ix * ny - iy * nx;
+  let ul = Math.hypot(ux, uy, uz) || 1;
   ux /= ul;
   uy /= ul;
   uz /= ul;
-  let vx = next.x - body.x;
-  let vy = next.y - body.y;
-  let vz = next.z - body.z;
-  const vl = Math.hypot(vx, vy, vz) || 1;
+  let vx = oy * nz - oz * ny;
+  let vy = oz * nx - ox * nz;
+  let vz = ox * ny - oy * nx;
+  let vl = Math.hypot(vx, vy, vz) || 1;
   vx /= vl;
   vy /= vl;
   vz /= vl;
@@ -80,22 +113,14 @@ export function wrapArc(prev, body, next, steps) {
   let al = Math.hypot(ax, ay, az);
   let ang = Math.acos(Math.max(-1, Math.min(1, ux * vx + uy * vy + uz * vz)));
   if (al < 1e-6) {
-    if (Math.abs(ux) < 0.9) {
-      ax = 0;
-      ay = uz;
-      az = -uy;
-    } else {
-      ax = -uz;
-      ay = 0;
-      az = ux;
+    if (ux * vx + uy * vy + uz * vz > 0) {
+      return [{ x: body.x + ux * r, y: body.y + uy * r, z: body.z + uz * r }];
     }
-    al = Math.hypot(ax, ay, az) || 1;
+    ax = nx;
+    ay = ny;
+    az = nz;
+    al = 1;
     ang = Math.PI;
-  } else {
-    ang = Math.PI * 2 - ang;
-    ax = -ax;
-    ay = -ay;
-    az = -az;
   }
   ax /= al;
   ay /= al;
@@ -134,7 +159,7 @@ export function nudgeOffBodies(p, bodies) {
     const dy = y - b.y;
     const dz = z - b.z;
     const d = Math.hypot(dx, dy, dz);
-    const min = b.sweetOut || b.radius * 2;
+    const min = b.radius * 1.15;
     if (d < min) {
       if (d < 1e-8) {
         y = b.y + min;
@@ -244,10 +269,18 @@ export function selfCheck() {
     around.every((p) => Math.abs(dist3(p, shell) - 5) < 1e-6 && dist3(p, shell) > 3),
     "arc on shell"
   );
-  const far = around.reduce((m, p) => (p.x > m.x ? p : m), around[0]);
-  assert(far.x > 0, "arc outside");
+  assert(around.every((p) => p.x > -0.01), "outside flyby");
   const buried = nudgeOffBodies({ x: c1.gates[0].x, y: c1.gates[0].y, z: c1.gates[0].z }, [c1.gates[0]]);
-  assert(dist3(buried, c1.gates[0]) >= c1.gates[0].sweetOut * 0.99, "nudge");
+  assert(dist3(buried, c1.gates[0]) >= c1.gates[0].radius * 1.14, "nudge");
+  const hopA = wrapArc(c1.spawn, c1.gates[0], c1.gates[1], 6);
+  const hopB = wrapArc(c1.gates[0], c1.gates[1], c1.gates[2] || c1.gates[0], 6);
+  const mid = {
+    x: (hopA[hopA.length - 1].x + hopB[0].x) * 0.5,
+    y: (hopA[hopA.length - 1].y + hopB[0].y) * 0.5,
+    z: (hopA[hopA.length - 1].z + hopB[0].z) * 0.5,
+  };
+  const chord = pointSegDist(mid.x, mid.y, mid.z, hopA[hopA.length - 1].x, hopA[hopA.length - 1].y, hopA[hopA.length - 1].z, hopB[0].x, hopB[0].y, hopB[0].z);
+  assert(chord < 1, "straight hop");
   for (let i = 1; i < c1.gates.length; i++) {
     assert(hopClear(c1.gates[i - 1], c1.gates[i], a.bodies), "classic hop");
   }

@@ -10,7 +10,7 @@ From this folder:
 npx serve .
 ```
 
-Open the URL it prints. Press a button on the splash to fly. Click the view to capture the mouse. Enter, Esc, Start, or the Menu overlay opens the menu. Portrait and landscape both work. On a phone, translucent pads cover thrust, brake, boost, roll, and look. Gyro aim is off until you grant it in Settings.
+Open the URL it prints. Press a button on the splash, then pick Free roam, Daily, or Weekly. Click the view to capture the mouse. Enter, Esc, Start, or the Menu overlay opens the menu. Portrait and landscape both work. On a phone, translucent pads cover thrust, brake, boost, roll, and look. Gyro aim is off until you grant it in Settings.
 
 The ship flies where the nose points. W thrusts, S brakes by pitching the hull so the bell burns (release finishes the flip), Shift boosts. In a well the hull leans in and the path follows; the Pilot keeps that curve on the way out. Mouse or arrows pitch and yaw. A / D rolls. The heat-shield nose is heading. The dashed cyan line is where current velocity goes. The round disc is a 3D radar. Graze the instrument rings around a body. Rocks have a small well too. Speeds are m/s. Distances are metres, kilometres past 1000 m.
 

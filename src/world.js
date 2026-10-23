@@ -99,7 +99,7 @@ function scalePlanet(p) {
 }
 
 // Wide of the first world, coasting +Z. Doing nothing misses. Steer in for the ring.
-function spawnNear(p) {
+export function spawnNear(p) {
   return { x: p.x - 140 * KM, y: p.y + 8 * KM, z: p.z - 420 * KM, vx: 0, vy: 0, vz: 12 * KM };
 }
 
@@ -137,7 +137,7 @@ function build(rng) {
     }
     return false;
   }
-  function addRock(x, y, z, radius, i, kind) {
+  function addRock(x, y, z, radius, i, kind, asteroid) {
     if (rockBlocked(x, y, z, radius)) return;
     const rock = {
       id: "rock" + rocks.length,
@@ -147,6 +147,7 @@ function build(rng) {
       radius,
       gm: 0.64 * Math.pow(radius / KM, 3) * KM * KM * KM,
       kind: kind ?? i % 3,
+      asteroid: Boolean(asteroid),
       sx: 0.7 + ((i * 3) % 5) * 0.12,
       sy: 0.55 + ((i * 5) % 7) * 0.1,
       sz: 0.65 + ((i * 2) % 4) * 0.14,
@@ -275,8 +276,8 @@ function build(rng) {
   }
   for (let i = 0; i < BIG.length; i++) {
     const r = BIG[i];
-    if (rng) addRock((rng() * 2 - 1) * 280 * KM * SPACE, (rng() * 2 - 1) * 200 * KM * SPACE, (rng() * 2 - 1) * 310 * KM * SPACE, (2.8 + rng() * 1.2) * KM * ROCK, i + 80);
-    else addRock(r[0] * KM * SPACE, r[1] * KM * SPACE, r[2] * KM * SPACE, r[3] * KM * ROCK, i + 80);
+    if (rng) addRock((rng() * 2 - 1) * 280 * KM * SPACE, (rng() * 2 - 1) * 200 * KM * SPACE, (rng() * 2 - 1) * 310 * KM * SPACE, (2.8 + rng() * 1.2) * KM * ROCK, i + 80, undefined, true);
+    else addRock(r[0] * KM * SPACE, r[1] * KM * SPACE, r[2] * KM * SPACE, r[3] * KM * ROCK, i + 80, undefined, true);
   }
   for (let c = 0; c < CLUSTERS.length; c++) {
     const row = CLUSTERS[c];
@@ -285,8 +286,8 @@ function build(rng) {
   }
   for (let i = 0; i < HULKS.length; i++) {
     const r = HULKS[i];
-    if (rng) addRock((rng() * 2 - 1) * 300 * KM * SPACE, (rng() * 2 - 1) * 200 * KM * SPACE, (rng() * 2 - 1) * 250 * KM * SPACE, (1.9 + rng() * 0.4) * KM * PLANET, i + 600, 3);
-    else addRock(r[0] * KM * SPACE, r[1] * KM * SPACE, r[2] * KM * SPACE, r[3] * KM * PLANET, i + 600, 3);
+    if (rng) addRock((rng() * 2 - 1) * 300 * KM * SPACE, (rng() * 2 - 1) * 200 * KM * SPACE, (rng() * 2 - 1) * 250 * KM * SPACE, (1.9 + rng() * 0.4) * KM * PLANET, i + 600, 3, true);
+    else addRock(r[0] * KM * SPACE, r[1] * KM * SPACE, r[2] * KM * SPACE, r[3] * KM * PLANET, i + 600, 3, true);
   }
 
   return {
@@ -343,6 +344,7 @@ export function selfCheck() {
   assert(a.planets[4].id === "Rhea" && a.planets[4].x === -380 * KM * SPACE, "rhea");
   assert(a.moons.length === 4 && a.moons[0].id === "Vela-1" && a.moons[0].x === 42 * KM * PLANET, "vela moon");
   assert(a.rocks.length === 405 && a.rocks[0].x === 150 * KM * SPACE && a.rocks[0].radius === 0.7 * KM * ROCK, "classic rocks");
+  assert(a.rocks.some((r) => r.asteroid) && a.rocks.some((r) => !r.asteroid), "asteroids");
   assert(stamp(a) === stamp(b), "classic stable");
 
   const day = new Date(Date.UTC(2026, 9, 22, 23, 0));

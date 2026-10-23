@@ -233,12 +233,14 @@ function reset() {
 reset();
 
 function poseSplash() {
-  ship.x = home.x + 80 * KM;
-  ship.y = home.y + 48 * KM;
-  ship.z = home.z - 260 * KM;
-  ship.vx = 4 * KM;
+  // Standoff is on X. +Z velocity never points at the body, so the miss stays outside the well.
+  const stand = Math.max(home.well * 2.6, 320 * KM);
+  ship.x = home.x + stand;
+  ship.y = home.y + stand * 0.12;
+  ship.z = home.z - stand * 0.2;
+  ship.vx = 0;
   ship.vy = 0;
-  ship.vz = 10 * KM;
+  ship.vz = 6 * KM;
   orient.identity();
   axis.set(1, 0, 0);
   turn.setFromAxisAngle(axis, -0.22);
@@ -951,14 +953,24 @@ function chaseCam(danger, dt) {
 
 function orbitSplash(dt) {
   if (ribbonMesh) ribbonMesh.visible = false;
-  forward.set(0, 0, 1).applyQuaternion(orient);
-  engineArcade(ship, forward.x, forward.y, forward.z, dt, false, false, false);
-  step(ship, bodies, pass, dt);
+  // Straight coast. Gravity would reel a long splash into the planet.
+  ship.x += ship.vx * dt;
+  ship.y += ship.vy * dt;
+  ship.z += ship.vz * dt;
+  const ang = spinSplash(dt);
+  spin.set(0.45 * Math.sin(ang * 1.4), 0.65 * Math.sin(ang * 0.8), 0.3 * Math.sin(ang * 1.1));
+  const rate = spin.length();
+  if (rate > 1e-5) {
+    axis.copy(spin).multiplyScalar(1 / rate);
+    turn.setFromAxisAngle(axis, rate * dt);
+    orient.multiply(turn);
+    orient.normalize();
+  }
   craft.position.set(ship.x, ship.y, ship.z);
   craft.quaternion.copy(orient);
   plume.visible = false;
+  for (const jet of rcsJets) jet.visible = jet.userData.torque.dot(spin) > RCS_DZ;
   sampleTrail(false);
-  const ang = spinSplash(dt);
   const dist = 5 * KM;
   camera.position.set(
     ship.x + Math.cos(ang) * dist,

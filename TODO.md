@@ -34,17 +34,17 @@ Done. `layout(seed)` in `src/world.js`. Same string in, same bodies out. Boot is
 
 Free space can take an optional seed later. Do not generate a new layout on every boot.
 
-## 5. Auto race
+## 5. Auto race (done)
 
-A race is an ordered chain of graze gates on bodies from that seed. The builder walks planets whose wells are apart and whose connecting segment does not bore through a body. Start outside the first well. Finish is the last gate. Same seed, same course.
+Done. `course(world)` in `src/race.js`. Gates are planets, moons, and asteroids (`asteroid` on the big rocks and hulks). Belt pebbles are not gates. Consecutive wells must sit apart, and the hop must not bore through a body. Start outside the first well. Finish is the last gate. Same seed, same course.
 
-Score is time to the last gate, plus how far the flown path sat off the ribbon between gates. Top speed is shown, not the thing you sort on. Menu grows a mode row: Free space (what exists now) and Race (today's daily, this week's weekly, or a typed seed).
+Score is time to the last gate plus mean distance off the ribbon (`t + meanRibbon / CRUISE`). Top speed is shown, not sorted on. Pause Play page: Free roam (weekly seed, no gates), Daily, Weekly. Typed seed stays on Developer. Local best is `slingshotta-race` per seed.
 
 ## 6. Scores, still on GitHub
 
 Pages cannot keep a write secret. Two steps, second one only after races feel worth timing.
 
-- **Yours.** `localStorage` best per mode and seed. No server.
+- **Yours.** Done with the race: `localStorage` key `slingshotta-race`, best per seed. No server.
 - **Shared.** A score issue template plus a GitHub Action that appends sane rows (seed matches, time above zero and under a cap) to a JSON file the page fetches raw. Cheating is accepted. No second host, no token in the client. If that click-to-file-an-issue flow is too clumsy, stop there.
 
 Seed string builds the universe layout, which builds the gate chain. Flight step feeds felt G, which feeds juice and strain, which feeds the wreck list. A race writes a local best, and that best is what a later shared board would publish.

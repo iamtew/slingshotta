@@ -16,7 +16,7 @@ The ship flies where the nose points. W thrusts, S brakes by pitching the hull s
 
 A gamepad works too: either stick aims, triggers thrust and brake, B boosts, bumpers roll. Start opens the menu, A selects, B backs. Hold D-pad to run the list. Left or right on a settings row cycles it.
 
-Controls in the pause menu lists fly and pause bindings. How to play is the briefing. Settings holds invert, touch overlays (auto / on / off), and gyro.
+Controls in the pause menu lists fly and pause bindings. How to play is the briefing. Settings holds invert, touch overlays (auto / on / off), and gyro. Play is Free roam, Daily, or Weekly. Free roam uses this week's seed. A typed seed is Developer only.
 
 ## Marks
 

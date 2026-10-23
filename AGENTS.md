@@ -39,7 +39,7 @@ Arcade flight. The ship flies where the nose points. A faint line trails the flo
 - Gamepad: either stick aims, triggers thrust and brake, B boosts, bumpers roll. Start opens the menu. D-pad or left stick moves, A selects, B backs. Right stick looks around Setara on the Ship page.
 - Touch overlays (auto on coarse pointers): thrust, brake, boost, roll, look disc, and a Menu button. Portrait and landscape both work. Settings can force overlays on or off.
 - Gyro (off until granted in Settings): tilt aims pitch and yaw. Engines stay on the overlays.
-- Enter, Esc, Start, or the Menu overlay pauses (Resume first, then Restart, Ship, Settings, Controls, How to play). Arrows or D-pad move (hold repeats), Enter selects, Esc backs out, left/right cycles a toggle. The last home row is remembered. How to play is the briefing. Controls lists bindings. Settings holds invert, overlays, and gyro. Ship is Setara: a preview, part specs, and three paints (vessels, pods, truss).
+- Enter, Esc, Start, or the Menu overlay pauses (Play first, then Ship, Settings, Controls, How to play). Esc on the home list resumes. Play is Free roam, Daily, and Weekly. Free roam and Weekly use this week's seed; Daily uses today's. Typed seeds stay on the Developer page. Arrows or D-pad move (hold repeats), Enter selects, Esc backs out, left/right cycles a toggle. The last home row is remembered. How to play is the briefing. Controls lists bindings. Settings holds invert, overlays, and gyro. Ship is Setara: a preview, part specs, and three paints (vessels, pods, truss).
 - Splash first: ship coasts, camera orbits it, any button continues. Menu Exit returns to splash. HUD drive reads RCS pitch/yaw/roll while jets fire.
 
 Keep a file under ~500 lines. Split at a named concern before it grows past that.
@@ -53,11 +53,12 @@ Keep a file under ~500 lines. Split at a named concern before it grows past that
 - `src/physics.js` — step, arcade engine/align, and `selfCheck`. Change the rules here, not in the renderer.
 - `src/hud.js` — Pixi overlay, radar projection, HUD `selfCheck`.
 - `src/tilt.js` — device tilt to screen yaw/pitch, and `selfCheck`.
-- `src/world.js` — `layout(seed)`, daily and weekly seed strings. `classic` is the hand-placed Vela system. Seeds are at most 8 characters.
+- `src/world.js` — `layout(seed)`, daily and weekly seed strings. `classic` is the hand-placed Vela system. Seeds are at most 8 characters. Free roam boots the weekly seed.
+- `src/race.js` — seeded graze-gate course on planets, moons, and asteroids, ribbon score, local best, `selfCheck`.
 - `src/ship.js` — Slingshot Racer mesh, RCS jets, plume, livery paint.
 - `src/shipview.js` — pause-menu ship preview, palettes, custom color.
 - `src/sky.js` — camera-locked nebula/sun, stars, planet canvases.
 - `src/fx.js` — flown-path trail from the bell, RCS streaks, ballistic ghost line, crash burst.
 - `src/input.js` — prefs, keys, mouse, pads, gyro. Does not import UI.
-- `src/ui.js` — splash, pause pages, crash overlay. Settings toggles Developer mode. The Developer page loads an 8-character seed and can show a corner readout.
+- `src/ui.js` — splash, pause pages, crash overlay. Play picks Free roam / Daily / Weekly. Settings toggles Developer mode. The Developer page loads an 8-character seed and can show a corner readout.
 - `src/main.js` — renderer, wells, camera, flight loop.

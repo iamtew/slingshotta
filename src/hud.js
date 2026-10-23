@@ -6,6 +6,12 @@ export const RADAR_RANGE = 480 * KM;
 const TILT = 0.45;
 const RADAR_R = 118;
 const STEM = 36;
+const CRT = 0x6aff8a;
+const CRT_DIM = 0x3d8a58;
+const CRT_LIT = 0xc8ffd4;
+const WARN = 0xff9a3c;
+const HOT = 0xff6a4a;
+const BOOST = 0xffb15a;
 
 function rotateByQuat(v, q) {
   const tx = 2 * (q.y * v.z - q.z * v.y);
@@ -44,10 +50,18 @@ export function fmtSpeed(mps) {
 }
 
 function zoneCue(zone) {
-  if (zone === "graze") return ["GRAZE", 0x7ecbff];
-  if (zone === "steep") return ["TOO STEEP", 0xff9a3c];
-  if (zone === "low") return ["TOO LOW", 0xff9a3c];
-  return ["OUTSIDE", 0x8aa0b8];
+  if (zone === "graze") return ["GRAZE", CRT];
+  if (zone === "steep") return ["TOO STEEP", WARN];
+  if (zone === "low") return ["TOO LOW", WARN];
+  return ["OUTSIDE", CRT_DIM];
+}
+
+// Ship-local +Y is up. No pull: blob falls down. Mag is 0..1 G.
+export function gOffset(g, dx, dy) {
+  const mag = Math.max(0, Math.min(1, g || 0));
+  const len = Math.hypot(dx || 0, dy || 0);
+  if (len < 1e-6) return { x: 0, y: -mag };
+  return { x: (dx / len) * mag, y: (dy / len) * mag };
 }
 
 // Well danger, scaled G, ignition kick. HUD glitch and stage jitter read this.
@@ -84,6 +98,12 @@ export function selfCheck() {
   assert(strain(0, 1, 0) === 0.85 && strain(0.2, 0, 0.9) === 0.9, "strain mix");
   assert(spinMark(0.1) === 0 && spinMark(2.2) === 1 && spinMark(-2.2) === -1, "spin deadzone");
   assert(zoneCue("graze")[0] === "GRAZE" && zoneCue("steep")[0] === "TOO STEEP", "zone cue");
+  const rest = gOffset(0, 1, 0);
+  assert(rest.x === 0 && rest.y === 0, "g rest");
+  const down = gOffset(1, 0, 0);
+  assert(Math.abs(down.x) < 1e-6 && down.y === -1, "g down");
+  const right = gOffset(0.5, 2, 0);
+  assert(Math.abs(right.x - 0.5) < 1e-6 && Math.abs(right.y) < 1e-6, "g pull");
 }
 
 if (typeof process !== "undefined" && process.argv[1]?.endsWith("hud.js")) {
@@ -93,39 +113,39 @@ if (typeof process !== "undefined" && process.argv[1]?.endsWith("hud.js")) {
 const LABEL = {
   fontFamily: "Segoe UI, system-ui, sans-serif",
   fontSize: 11,
-  fill: 0x8aa0b8,
+  fill: CRT_DIM,
   letterSpacing: 2.4,
 };
 const VALUE = {
   fontFamily: "ui-monospace, Consolas, Segoe UI, monospace",
   fontSize: 26,
-  fill: 0xe8f0f6,
+  fill: CRT_LIT,
   fontWeight: "600",
   letterSpacing: 1,
 };
 const NAME = {
   fontFamily: "ui-monospace, Consolas, Segoe UI, monospace",
   fontSize: 18,
-  fill: 0xe8f0f6,
+  fill: CRT_LIT,
   fontWeight: "600",
   letterSpacing: 1,
 };
 const TOAST = {
   fontFamily: "Segoe UI, system-ui, sans-serif",
   fontSize: 14,
-  fill: 0xd7e2ea,
+  fill: CRT_LIT,
   align: "center",
   wordWrap: true,
   wordWrapWidth: 520,
-  stroke: { color: 0x070b14, width: 4 },
+  stroke: { color: 0x041208, width: 4 },
 };
 const ALERT = {
   fontFamily: "ENOCH, Segoe UI, system-ui, sans-serif",
   fontSize: 22,
-  fill: 0xff6a4a,
+  fill: HOT,
   fontWeight: "400",
   letterSpacing: 3,
-  stroke: { color: 0x14080a, width: 4 },
+  stroke: { color: 0x041208, width: 4 },
 };
 
 // Open chevron + ticks. No fill. mirror=true is the right (nearest) side.
@@ -138,55 +158,53 @@ function drawBracket(g, w, h, mirror) {
   g.lineTo(x0, cut);
   g.lineTo(x0, h - cut);
   g.lineTo(xInner, h - 2);
-  g.stroke({ width: 1.6, color: 0xff9a3c, alpha: 0.8 });
+  g.stroke({ width: 1.6, color: CRT, alpha: 0.8 });
   // Short cap, not a lid — a full top/bottom stroke reads as a box.
   g.moveTo(xInner, 4);
   g.lineTo(xInner + dir * 40, 4);
-  g.stroke({ width: 1.8, color: 0x7ecbff, alpha: 0.75 });
+  g.stroke({ width: 1.8, color: CRT, alpha: 0.75 });
   for (let i = 0; i < 6; i++) {
     if (i === 2) continue;
     const x = xInner + dir * (10 + i * 16);
     g.moveTo(x, h - 4);
     g.lineTo(x, h - (i % 3 === 0 ? 12 : 8));
   }
-  g.stroke({ width: 1, color: 0x7ecbff, alpha: 0.4 });
+  g.stroke({ width: 1, color: CRT, alpha: 0.4 });
   const dead = xInner + dir * 42;
   g.moveTo(dead, h - 4);
   g.lineTo(dead, h - 6);
-  g.stroke({ width: 1, color: 0xff9a3c, alpha: 0.22 });
+  g.stroke({ width: 1, color: CRT, alpha: 0.22 });
 }
 
-// Top semicircle, 0 at left, 1 at right. Matches paintNeedle angles.
 function drawGauge(g, cx, cy, r) {
-  for (let i = 0; i <= 16; i++) {
-    const ang = Math.PI * (1 - i / 16);
-    const x = cx + Math.cos(ang) * r;
-    const y = cy - Math.sin(ang) * r;
-    if (i === 0) g.moveTo(x, y);
-    else g.lineTo(x, y);
-  }
-  g.stroke({ width: 1.6, color: 0xff9a3c, alpha: 0.8 });
-  for (let i = 0; i <= 4; i++) {
-    const ang = Math.PI * (1 - i / 4);
+  g.circle(cx, cy, r);
+  g.fill({ color: 0x041208, alpha: 0.5 });
+  g.circle(cx, cy, r);
+  g.stroke({ width: 2, color: CRT, alpha: 0.9 });
+  for (let i = 0; i < 8; i++) {
+    const ang = (i / 8) * Math.PI * 2;
     const c = Math.cos(ang);
-    const s = -Math.sin(ang);
-    const inner = i % 2 === 0 ? r - 7 : r - 4;
+    const s = Math.sin(ang);
+    const inner = i % 2 === 0 ? r - 6 : r - 3;
     g.moveTo(cx + c * inner, cy + s * inner);
     g.lineTo(cx + c * r, cy + s * r);
   }
-  g.stroke({ width: 1, color: 0x7ecbff, alpha: 0.55 });
+  g.stroke({ width: 1, color: CRT, alpha: 0.5 });
+  g.circle(cx, cy, 2);
+  g.fill({ color: CRT_DIM, alpha: 0.85 });
 }
 
-function paintNeedle(g, cx, cy, r, load) {
-  const ang = Math.PI * (1 - load);
-  const nx = cx + Math.cos(ang) * (r - 3);
-  const ny = cy - Math.sin(ang) * (r - 3);
+function paintBall(g, cx, cy, r, load, pull) {
+  const off = gOffset(load, pull?.x, pull?.y);
+  const reach = r - 7;
+  const bx = cx + off.x * reach;
+  const by = cy - off.y * reach;
+  const hot = load > 0.7;
   g.clear();
-  g.moveTo(cx, cy);
-  g.lineTo(nx, ny);
-  g.stroke({ width: 2, color: load > 0.7 ? 0xff6a4a : 0x7ecbff, alpha: 0.95 });
-  g.circle(cx, cy, 2.4);
-  g.fill({ color: 0xe8f0f6, alpha: 0.9 });
+  g.circle(bx, by, 6);
+  g.fill({ color: hot ? HOT : CRT, alpha: 0.95 });
+  g.circle(bx, by, 9);
+  g.stroke({ width: 1.4, color: hot ? HOT : CRT_LIT, alpha: 0.5 });
 }
 
 // One soft falloff. Stretched over the frame it reads as a tunnel, not rings.
@@ -218,7 +236,7 @@ function paintFeel(g, w, h, spin) {
       g.moveTo(cx + s * (50 + i * 22), cy - 36 + i * 24);
       g.lineTo(cx + s * (50 + i * 22) + s * 18 * Math.abs(py), cy - 36 + i * 24);
     }
-    g.stroke({ width: 1.1, color: 0x7ecbff, alpha: 0.16 + 0.28 * Math.abs(py) });
+    g.stroke({ width: 1.1, color: CRT, alpha: 0.16 + 0.28 * Math.abs(py) });
   }
   if (px) {
     const s = Math.sign(px);
@@ -226,7 +244,7 @@ function paintFeel(g, w, h, spin) {
       g.moveTo(cx - 40 + i * 28, cy + s * (24 + i * 20));
       g.lineTo(cx - 40 + i * 28, cy + s * (24 + i * 20) + s * 16 * Math.abs(px));
     }
-    g.stroke({ width: 1.1, color: 0x7ecbff, alpha: 0.16 + 0.28 * Math.abs(px) });
+    g.stroke({ width: 1.1, color: CRT, alpha: 0.16 + 0.28 * Math.abs(px) });
   }
   if (pz) {
     const dir = Math.sign(pz);
@@ -236,7 +254,7 @@ function paintFeel(g, w, h, spin) {
       g.moveTo(cx + Math.cos(a0) * 70, cy + Math.sin(a0) * 70);
       g.lineTo(cx + Math.cos(a1) * 70, cy + Math.sin(a1) * 70);
     }
-    g.stroke({ width: 1.2, color: 0xff9a3c, alpha: 0.14 + 0.3 * Math.abs(pz) });
+    g.stroke({ width: 1.2, color: CRT, alpha: 0.14 + 0.3 * Math.abs(pz) });
   }
 }
 
@@ -262,10 +280,10 @@ export async function createHud() {
   const driveVal = new Text({ text: "COAST", style: LABEL });
   speedLabel.position.set(18, 8);
   const gMeter = new Graphics();
-  const gNeedle = new Graphics();
+  const gBall = new Graphics();
   const gLabel = new Text({ text: "G", style: LABEL });
   gLabel.anchor.set(0.5, 0);
-  left.addChild(leftBg, speedLabel, speedVal, driveVal, gMeter, gNeedle, gLabel);
+  left.addChild(leftBg, speedLabel, speedVal, driveVal, gMeter, gBall, gLabel);
 
   const vignette = new Sprite(Texture.from(tunnelCanvas()));
   vignette.alpha = 0;
@@ -298,7 +316,7 @@ export async function createHud() {
   warnText.anchor.set(0.5, 0.5);
   const warnGhost = new Text({
     text: "PROXIMITY",
-    style: { ...ALERT, fill: 0x7ecbff },
+    style: { ...ALERT, fill: CRT },
   });
   warnGhost.anchor.set(0.5, 0.5);
   warn.addChild(warnGfx, warnGhost, warnText);
@@ -357,16 +375,14 @@ export async function createHud() {
     rightBg.clear();
     drawBracket(rightBg, panelW, panelH, true);
     const tight = panelH < 80;
-    const gr = tight ? 14 : 18;
+    const gr = tight ? 22 : 28;
     gauge.r = gr;
     gauge.cx = panelW - 10 - gr;
-    // Hub sits under the G label, above the speed digits.
-    gauge.cy = gr + 14;
+    gauge.cy = panelH * 0.52;
     gLabel.position.set(gauge.cx, 2);
-    // Speed starts under the hub so the needle, which rests on that line, stays clear.
-    const speedY = gauge.cy + (tight ? 8 : 14);
+    const speedY = tight ? 22 : 24;
     const driveY = panelH - (tight ? 14 : 16);
-    const room = gauge.cx - gauge.r - 28;
+    const room = gauge.cx - gauge.r - 18;
     const speedSize = Math.max(13, Math.min(tight ? 15 : 20, driveY - speedY - 2, (room / 5.6) | 0));
     speedVal.style.fontSize = speedSize;
     speedVal.position.set(18, speedY);
@@ -382,37 +398,37 @@ export async function createHud() {
     rail.lineTo(radarX - gap, railY);
     rail.moveTo(radarX + gap, railY);
     rail.lineTo(right.x + panelW, railY);
-    rail.stroke({ width: 1, color: 0xff9a3c, alpha: 0.28 });
+    rail.stroke({ width: 1, color: CRT, alpha: 0.28 });
     rail.moveTo(radarX - gap, railY - 6);
     rail.lineTo(radarX - gap, railY + 6);
     rail.moveTo(radarX + gap, railY - 6);
     rail.lineTo(radarX + gap, railY + 6);
-    rail.stroke({ width: 1.2, color: 0x7ecbff, alpha: 0.45 });
+    rail.stroke({ width: 1.2, color: CRT, alpha: 0.45 });
   }
 
   // Static disc. Blips redraw each frame.
   radarPlate.clear();
   radarPlate.ellipse(0, 0, RADAR_R + 8, (RADAR_R + 8) * TILT);
-  radarPlate.fill({ color: 0x14080a, alpha: 0.72 });
+  radarPlate.fill({ color: 0x041208, alpha: 0.72 });
   radarPlate.ellipse(0, 0, RADAR_R + 8, (RADAR_R + 8) * TILT);
-  radarPlate.stroke({ width: 2, color: 0xff9a3c, alpha: 0.85 });
+  radarPlate.stroke({ width: 2, color: CRT, alpha: 0.85 });
   for (const t of [1, 0.66, 0.33]) {
     radarPlate.ellipse(0, 0, RADAR_R * t, RADAR_R * t * TILT);
-    radarPlate.stroke({ width: 1.2, color: 0xff9a3c, alpha: 0.35 + t * 0.2 });
+    radarPlate.stroke({ width: 1.2, color: CRT, alpha: 0.35 + t * 0.2 });
   }
   radarPlate.moveTo(0, -RADAR_R * TILT);
   radarPlate.lineTo(0, RADAR_R * TILT);
   radarPlate.moveTo(-RADAR_R, 0);
   radarPlate.lineTo(RADAR_R, 0);
-  radarPlate.stroke({ width: 1, color: 0xff9a3c, alpha: 0.28 });
+  radarPlate.stroke({ width: 1, color: CRT, alpha: 0.28 });
   radarPlate.moveTo(-7, 6);
   radarPlate.lineTo(0, -10);
   radarPlate.lineTo(7, 6);
   radarPlate.closePath();
-  radarPlate.fill({ color: 0x7ecbff, alpha: 0.95 });
+  radarPlate.fill({ color: CRT, alpha: 0.95 });
   radarPlate.moveTo(RADAR_R + 2, -5);
   radarPlate.lineTo(RADAR_R + 9, -5);
-  radarPlate.stroke({ width: 1, color: 0x7ecbff, alpha: 0.32 });
+  radarPlate.stroke({ width: 1, color: CRT, alpha: 0.32 });
 
   layout();
   addEventListener("resize", layout);
@@ -440,7 +456,7 @@ export async function createHud() {
       vignette.alpha = g < 0.02 ? 0 : g * 0.82;
       paintFeel(feel, sw, sh, state.spin);
       app.stage.position.set(load > 0.04 ? (Math.random() - 0.5) * load * 5 : 0, load > 0.04 ? (Math.random() - 0.5) * load * 4 : 0);
-      paintNeedle(gNeedle, gauge.cx, gauge.cy, gauge.r, g);
+      paintBall(gBall, gauge.cx, gauge.cy, gauge.r, g, state.pull);
       let speed = fmtSpeed(state.speed);
       if (load > 0.28) {
         const slot = (state.now / 80) | 0;
@@ -451,19 +467,19 @@ export async function createHud() {
       }
       speedVal.text = speed;
       let drive = "COAST";
-      let driveFill = 0x8aa0b8;
+      let driveFill = CRT_DIM;
       if (state.boost) {
         drive = "BOOST";
-        driveFill = 0xffb15a;
+        driveFill = BOOST;
       } else if (state.thrust) {
         drive = "THRUST";
-        driveFill = 0x7ecbff;
+        driveFill = CRT;
       } else if (state.brake) {
         drive = "BRAKE";
-        driveFill = 0xff9a3c;
+        driveFill = WARN;
       } else if (state.rcs) {
         drive = state.rcs;
-        driveFill = 0xd8f2ff;
+        driveFill = CRT_LIT;
       }
       driveVal.text = drive;
       driveVal.style.fill = driveFill;
@@ -484,7 +500,7 @@ export async function createHud() {
         const pulse = 0.35 + 0.45 * Math.abs(Math.sin(state.now / 90));
         const hit = danger > 0.65;
         warnText.text = hit ? "IMPACT" : zoneText;
-        warnText.style.fill = hit ? 0xff6a4a : zoneFill;
+        warnText.style.fill = hit ? HOT : zoneFill;
         warnText.alpha = danger > 0 ? 0.55 + Math.min(1, danger) * pulse * 0.45 : 0.92;
         warnGhost.text = warnText.text;
         warnGhost.position.set(warnText.x + 2, warnText.y);
@@ -504,7 +520,7 @@ export async function createHud() {
           warnGfx.moveTo(sw - 18, sh - 22);
           warnGfx.lineTo(sw - 52, sh - 22);
           warnGfx.lineTo(sw - 18, sh - 56);
-          warnGfx.stroke({ width: 2, color: 0xff6a4a, alpha: 0.4 + alpha * 0.6 });
+          warnGfx.stroke({ width: 2, color: HOT, alpha: 0.4 + alpha * 0.6 });
         }
       } else {
         warnGhost.visible = false;
@@ -515,7 +531,7 @@ export async function createHud() {
       const ang = sweep * Math.PI * 2;
       radarBlips.moveTo(0, 0);
       radarBlips.lineTo(Math.cos(ang) * RADAR_R, Math.sin(ang) * RADAR_R * TILT);
-      radarBlips.stroke({ width: 1.5, color: 0xff9a3c, alpha: 0.35 });
+      radarBlips.stroke({ width: 1.5, color: CRT, alpha: 0.35 });
 
       for (const p of state.planets) {
         const hit = projectRadar(

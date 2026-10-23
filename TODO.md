@@ -12,7 +12,7 @@ Copy only. Splash, pause, how-to, help, crash title, `AGENTS.md`, and `README.md
 
 ## 2. G-force meter and strain picture (done)
 
-`feltG` in `src/physics.js`: sideways `|Δv| / dt / FELT`, sampled around engine/step/align. HUD G needle beside speed, high G reuses inner-band shake plus a Pixi tunnel vignette.
+`feltG` in `src/physics.js`: sideways `|Δv| / dt / FELT`, sampled around engine/step/align. HUD G ball beside speed, high G reuses inner-band shake plus a Pixi tunnel vignette.
 
 ## 3. Juice and Pilot health
 

@@ -78,6 +78,11 @@ const MAX_SPIN = 2.2;
 // Locked mouse: pixels this frame are turn rate, then they clear.
 const MOUSE_TURN = 0.15;
 const WELL_SHOW = 2.2;
+const WELL_FADE = 10;
+const WELL_RING_A = 0.18;
+const WELL_BAND_A = 0.22;
+const WELL_SHELL_G = 0.16;
+const WELL_BAND_G = 0.1;
 const GHOST_N = 14;
 const GHOST_DT = 0.14;
 
@@ -230,16 +235,16 @@ scene.add(fill);
 const { hitchSky, planetMap } = createSky(scene, camera, fill, KM);
 
 const wellMat = new THREE.MeshBasicMaterial({
-  color: 0x7ecbff,
+  color: 0x6aff8a,
   transparent: true,
-  opacity: 0.55,
+  opacity: WELL_RING_A,
   depthWrite: false,
   side: THREE.DoubleSide,
 });
 const bandMat = new THREE.MeshBasicMaterial({
-  color: 0xffb15a,
+  color: 0xff9a3c,
   transparent: true,
-  opacity: 0.72,
+  opacity: WELL_BAND_A,
   depthWrite: false,
   side: THREE.DoubleSide,
 });
@@ -254,8 +259,8 @@ const shellMat = new THREE.ShaderMaterial({
   side: THREE.DoubleSide,
   blending: THREE.AdditiveBlending,
   uniforms: {
-    uColor: { value: new THREE.Color(0x7ecbff) },
-    uGain: { value: 0.85 },
+    uColor: { value: new THREE.Color(0x6aff8a) },
+    uGain: { value: WELL_SHELL_G },
   },
   vertexShader: `
     varying vec3 vN;
@@ -279,8 +284,8 @@ const shellMat = new THREE.ShaderMaterial({
   `,
 });
 const bandShellMat = shellMat.clone();
-bandShellMat.uniforms.uColor.value.set(0xffb15a);
-bandShellMat.uniforms.uGain.value = 0.4;
+bandShellMat.uniforms.uColor.value.set(0xff9a3c);
+bandShellMat.uniforms.uGain.value = WELL_BAND_G;
 
 function makeRing(material) {
   const mesh = new THREE.Mesh(ringGeo, material);
@@ -290,11 +295,16 @@ function makeRing(material) {
 
 function makeWellMark() {
   const g = new THREE.Group();
-  const band = makeRing(bandMat);
+  const ring = wellMat.clone();
+  const bandM = bandMat.clone();
+  const shell = shellMat.clone();
+  const bandShell = bandShellMat.clone();
+  const band = makeRing(bandM);
   band.name = "band";
-  const inner = new THREE.Mesh(shellGeo, bandShellMat);
+  const inner = new THREE.Mesh(shellGeo, bandShell);
   inner.name = "shellBand";
-  g.add(new THREE.Mesh(shellGeo, shellMat), inner, makeRing(wellMat), band);
+  g.add(new THREE.Mesh(shellGeo, shell), inner, makeRing(ring), band);
+  g.userData = { fade: 0, bodyId: null, ring, band: bandM, shell, bandShell };
   g.visible = false;
   scene.add(g);
   return g;
@@ -594,7 +604,7 @@ function nearestBody() {
   return { nearest, nearestD };
 }
 
-function paintWells() {
+function paintWells(dt) {
   const near = [];
   for (const b of bodies) {
     if (!(b.well > 0)) continue;
@@ -606,19 +616,35 @@ function paintWells() {
     const dc = Math.hypot(ship.x - c.x, ship.y - c.y, ship.z - c.z);
     return da - dc;
   });
+  const step = 1 - Math.exp(-WELL_FADE * dt);
   for (let i = 0; i < wellPool.length; i++) {
     const mark = wellPool[i];
     const b = near[i];
-    if (!b) {
+    if (b && mark.userData.bodyId !== b.id) {
+      mark.userData.bodyId = b.id;
+      mark.userData.fade = 0;
+    }
+    const target = b ? 1 : 0;
+    mark.userData.fade += (target - mark.userData.fade) * step;
+    if (!b && mark.userData.fade < 0.02) {
+      mark.userData.bodyId = null;
+      mark.userData.fade = 0;
       mark.visible = false;
       continue;
     }
     mark.visible = true;
-    mark.position.set(b.x, b.y, b.z);
-    mark.scale.setScalar(b.well);
-    const s = b.sweetIn / b.well;
-    mark.getObjectByName("band").scale.set(s, s, s);
-    mark.getObjectByName("shellBand").scale.set(s, s, s);
+    if (b) {
+      mark.position.set(b.x, b.y, b.z);
+      mark.scale.setScalar(b.well);
+      const s = b.sweetIn / b.well;
+      mark.getObjectByName("band").scale.set(s, s, s);
+      mark.getObjectByName("shellBand").scale.set(s, s, s);
+    }
+    const fade = mark.userData.fade;
+    mark.userData.ring.opacity = WELL_RING_A * fade;
+    mark.userData.band.opacity = WELL_BAND_A * fade;
+    mark.userData.shell.uniforms.uGain.value = WELL_SHELL_G * fade;
+    mark.userData.bandShell.uniforms.uGain.value = WELL_BAND_G * fade;
   }
 }
 
@@ -641,6 +667,7 @@ function paintHud(now, nearest, nearestD, danger) {
     planets: radarBodies,
     danger,
     g: Math.min(1, gLoad),
+    pull: { x: localPull.x, y: localPull.y },
     kick: paused || splash ? 0 : burnKick,
     spin: paused || splash ? { x: 0, y: 0, z: 0 } : spin,
     rcs: rcsLabel(),
@@ -892,7 +919,7 @@ function frame(now) {
   plume.scale.set(wide, along, wide);
   for (const jet of rcsJets) jet.visible = jet.userData.torque.dot(spin) > RCS_DZ;
   sampleTrail(thrust || boost || bellFwd > 0.04);
-  paintWells();
+  paintWells(dt);
 
   const speed = Math.hypot(ship.vx, ship.vy, ship.vz);
   if (speed > 0.35 * KM) {

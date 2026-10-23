@@ -1,7 +1,7 @@
 // Prefs, keys, mouse, pads, gyro. No UI import — the loop wires splash/pause.
 import { screenTilt } from "./tilt.js";
 
-export const invert = { pitch: false, yaw: true, roll: true };
+export const invert = { pitch: false, yaw: true, roll: false };
 export const inputPrefs = {
   overlays: "auto",
   gyro: false,
@@ -16,9 +16,14 @@ const STORE = "slingshotta-input";
 export function loadPrefs() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE) || "{}");
+    const migrateRoll = s.prefsV !== 2;
     if (typeof s.invert?.pitch === "boolean") invert.pitch = s.invert.pitch;
     if (typeof s.invert?.yaw === "boolean") invert.yaw = s.invert.yaw;
     if (typeof s.invert?.roll === "boolean") invert.roll = s.invert.roll;
+    if (migrateRoll) {
+      invert.roll = false;
+      savePrefs();
+    }
     if (s.overlays === "on" || s.overlays === "off" || s.overlays === "auto") inputPrefs.overlays = s.overlays;
     if (typeof s.gyro === "boolean") inputPrefs.gyro = s.gyro;
     if (typeof s.developer === "boolean") inputPrefs.developer = s.developer;
@@ -35,6 +40,7 @@ export function savePrefs() {
   localStorage.setItem(
     STORE,
     JSON.stringify({
+      prefsV: 2,
       invert,
       overlays: inputPrefs.overlays,
       gyro: inputPrefs.gyro,
